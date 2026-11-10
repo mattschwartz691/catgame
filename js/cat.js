@@ -427,7 +427,7 @@ export class Cat {
       let my = 0, mz = 0;
       if (f) _p.set(s * groomW * 0.6, lerp(0.15, -1, rearW), lerp(-1, -0.5, rearW));
       else {
-        _p.set(0, 0.35, 1);
+        _p.set(0, lerp(0.35, -0.25, gal * (1 - foldE)), 1);      // keep galloping knees tucked under, not above the back
         my = lerp(0.072, 0.014, foldE); mz = lerp(-0.026, -0.072, foldE) - airW * 0.02;
         _f.y += my; _f.z += mz;
       }

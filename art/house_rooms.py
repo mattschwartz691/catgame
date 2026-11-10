@@ -242,18 +242,18 @@ def cat_bed(x, z, col=(0.75, 0.55, 0.5)):
 def treat(x, y, z): S['treats'].append([round(x, 2), round(y + 0.14, 2), round(z, 2)])
 
 def living():
-    put('sofa_03', -4.4, 0.9, rot=90, collide=('seat', 0.46, 0.2, (0.72, 0.3)))
+    put('sofa_03', -4.4, 0.9, rot=90, collide=('seat', 0.54, 0.2, (0.76, 0.3)))
     S['scratch'] += [dict(type='wall', axis='z', at=2.27, n=1, a=[-4.8, -4.0], name='sofa', surface='fabric', marks=True),
                      dict(type='wall', axis='z', at=-0.47, n=-1, a=[-4.8, -4.0], name='sofa', surface='fabric', marks=True),
                      dict(type='wall', axis='x', at=-4.87, n=-1, a=[-0.3, 2.1], name='sofa', surface='fabric', marks=True)]
-    S['zones'].append(dict(kind='knead', b=[-4.8, -3.95, -0.3, 2.1], y=0.46, name='the sofa'))
+    S['zones'].append(dict(kind='knead', b=[-4.8, -3.95, -0.3, 2.1], y=0.54, name='the sofa'))
     put('CoffeeTable_01', -2.85, 0.9, rot=90)
     put('ClassicConsole_01', -0.98, 0.7, rot=270, collide=('table', 0.1))
     put('Television_01', -0.98, 0.45, rot=270, y=0.949)
     S['items'].append(dict(kind='tv', p=[-1.22, 1.18, 0.45], n=[-1, 0], size=[0.34, 0.26]))
-    put('ArmChair_01', -2.6, 3.95, rot=180, collide=('seat', 0.42, 0.22, (0.66, 0.14)))
+    put('ArmChair_01', -2.6, 3.95, rot=180, collide=('seat', 0.49, 0.22, (0.68, 0.14)))
     put('Ottoman_01', -2.6, 2.95, rot=0)
-    put('wooden_bookshelf_worn', -6.9, -0.82, rot=0, collide=('shelves', [0.1, 0.45, 0.8, 1.15, 1.5, 1.85, 2.06]), cam=True)
+    put('wooden_bookshelf_worn', -6.9, -0.82, rot=0, collide=('shelves', [0.1, 0.4, 0.68, 0.96, 1.28, 1.66, 2.06]), cam=True, spot='the bookshelf')
     put('mid_century_lounge_chair', -6.85, 0.75, rot=90, collide=('seat', 0.42, 0.25))
     put('vintage_grandfather_clock_01', -0.92, 4.9, rot=270, cam=True, spot='the grandfather clock')
     put('side_table_tall_01', -5.55, 4.95, rot=0, collide=('table', 0.05))
@@ -262,8 +262,8 @@ def living():
     put('fancy_picture_frame_01', -0.69, 0.7, rot=270, y=1.62, collide='none')
     put('fancy_picture_frame_02', -8 + 0.075 + 0.045, 4.5, rot=90, y=1.2, collide='none')
     put('hanging_picture_frame_02', -6.9, 5.5 - 0.09, rot=180, y=10, collide='none', static=False)   # placeholder off-scene (keeps lib warm)
-    put('wooden_display_shelves_01', -4.45, 5.22, rot=90, collide=('shelves', [0.04, 0.54, 1.05, 1.56]), cam=True)
-    put('boombox', -4.45, 5.22, rot=180, y=1.56, scale=0.8, collide='none')
+    put('wooden_display_shelves_01', -4.45, 5.22, rot=90, collide=('shelves', [0.06, 0.42, 0.78, 1.16, 1.54]), cam=True, spot='the cube shelves')
+    put('boombox', -4.45, 5.22, rot=180, y=1.54, scale=0.8, collide='none')
     S['items'].append(dict(kind='boombox', p=[-4.45, 1.75, 5.2], r=0.45))
     put('cardboard_box_01', -6.0, 3.0, rot=0, spot='the cardboard box')
     S['zones'].append(dict(kind='box', p=[-6.0, 0.342, 3.0], r=0.3, name='the cardboard box'))
@@ -277,18 +277,18 @@ def living():
     wall_shelf(-2.1, -0.95, 1.35, -1.13, -0.88); wall_shelf(-1.75, -0.75, 1.9, -1.13, -0.88, spot='the high shelf')
     S['zones'].append(dict(kind='sun', b=[-7.2, -4.6, 2.6, 4.9], name='the sunbeam'))
     # things to knock about
-    prop('throw_pillows_01#0', -4.45, 0.5, 0.1, rot=90); prop('throw_pillows_01#1', -4.45, 0.5, 1.75, rot=90)
+    prop('throw_pillows_01#0', -4.45, 0.55, 0.1, rot=90); prop('throw_pillows_01#1', -4.45, 0.55, 1.75, rot=90)
     prop('ceramic_vase_01', -2.85, 0.53, 0.45); prop('tea_set_01#8', -2.9, 0.53, 1.1); prop('tea_set_01#0', -2.6, 0.53, 1.3); prop('tea_set_01#1', -3.1, 0.53, 1.4)
     prop('mantel_clock_01', -0.98, 0.95, 1.2, rot=270); prop('standing_picture_frame_01', -0.95, 0.95, -0.05, rot=270)
     prop('marble_bust_01', -5.55, 0.77, 4.95, rot=180)
-    prop('antique_ceramic_vase_01', -6.5, 0.8, -0.8); prop('garden_gnome', -7.3, 1.15, -0.82); prop('ceramic_vase_03', -6.9, 1.5, -0.8)
-    prop('carved_wooden_elephant', -6.4, 1.15, -0.8); prop('concrete_cat_statue', -7.35, 2.07, -0.8); prop('brass_vase_01', -6.5, 2.07, -0.82)
-    prop('ceramic_vase_02', -4.75, 1.06, 5.22); prop('standing_picture_frame_02', -4.15, 1.06, 5.22, rot=180); prop('ceramic_vase_04', -4.45, 0.55, 5.22)
+    prop('antique_ceramic_vase_01', -6.5, 0.96, -0.8, scale=0.6); prop('garden_gnome', -7.3, 1.28, -0.82, scale=0.55); prop('ceramic_vase_03', -6.9, 1.66, -0.8, scale=0.8)
+    prop('carved_wooden_elephant', -6.4, 1.28, -0.8, scale=1.6); prop('concrete_cat_statue', -7.35, 2.06, -0.8); prop('brass_vase_01', -6.5, 2.06, -0.82)
+    prop('ceramic_vase_02', -4.75, 1.16, 5.22, scale=0.9); prop('standing_picture_frame_02', -4.15, 1.16, 5.22, rot=180); prop('ceramic_vase_04', -4.45, 0.78, 5.22, scale=0.9)
     prop('potted_plant_04', -6.4, 0.5, 5.36); prop('planter_pot_clay', -2.6, 0.5, 5.36); prop('potted_plant_04', -7.9 + 0.04, 0.5, 2.0)
     prop('jug_01', -1.5, 1.36, -1.0); prop('wine_bottles_01#1', -1.1, 1.91, -1.0)
     prop('baseball_01', -3.3, 0, 3.3); prop('american_football', -5.6, 0, 1.9, scale=0.6); prop('yarn', -2.0, 0, 1.9, col=0xD9534F); prop('yarn', -5.9, 0, 4.0, col=0x4F9BD9)
     prop('mouse', -3.6, 0, 4.6); prop('pingpong', -1.8, 0, 4.4)
-    for t in ((-7.25, 1.83, 4.5), (-6.9, 2.06, -0.82), (-4.45, 1.56, 5.22), (-1.25, 1.9, -1.0), (-0.92, 2.19, 4.9), (-4.4, 0.46, 0.9), (-2.85, 0.523, 0.55), (-7.7, 0.5, 3.0), (-6.0, 0.342, 3.0), (-2.6, 0.62, 2.95), (-7.6, 0, -1.0), (-3.0, 0, 5.2)):
+    for t in ((-7.25, 1.83, 4.5), (-6.9, 2.06, -0.82), (-4.45, 1.54, 5.0), (-1.25, 1.9, -1.0), (-0.92, 2.19, 4.9), (-4.4, 0.54, 0.9), (-2.85, 0.523, 0.55), (-7.7, 0.5, 3.0), (-6.0, 0.342, 3.0), (-2.6, 0.62, 2.95), (-7.6, 0, -1.0), (-3.0, 0, 5.2)):
         treat(*t)
 
 def kitchen():
@@ -361,7 +361,7 @@ def kitchen():
 
 def hall():
     rug('hall', -0.05, 0.85, -4.6, 4.6, [0x2F4F5F, 0xD9C7A0, 0xB8483E, 0xE0913F], seed=4)
-    put('painted_wooden_bench', 1.4 - 0.075 - 0.25, 1.6, rot=270, collide=('seat', 0.45, 0.15))
+    put('painted_wooden_bench', 1.4 - 0.075 - 0.25, 1.6, rot=270, collide=('seat', 0.66, 0.15))
     put('ClassicNightstand_01', -0.6 + 0.075 + 0.22, -0.3, rot=90, spot=None)
     put('ornate_mirror_01', -0.6 + 0.075 + 0.014, -0.3, rot=90, y=1.15, collide='none')
     put('hanging_picture_frame_01', 1.4 - 0.075 - 0.01, 4.5, rot=270, y=1.05, collide='none')
@@ -374,16 +374,16 @@ def hall():
     prop('rubber_boots#0', 1.1, 0, 4.2, rot=90); prop('rubber_boots#1', 1.12, 0, 3.95, rot=80)
     prop('ceramic_vase_04', -0.3, 0.7, -0.1); prop('alarm_clock_01', -0.41, 1.25, -4.5, rot=90); prop('standing_picture_frame_01', -0.41, 1.25, -4.85, rot=90)
     prop('brass_goblets#2', -0.41, 1.8, -0.4); prop('ball', 0.4, 0, 0.3, col=0x9BDB5A); prop('mouse', 0.9, 0, -3.8)
-    prop('binder_notebook#1', 1.08, 0.46, 1.5, rot=90)
-    for t in ((0.4, 0, 4.9), (0.4, 0, -5.0), (-0.41, 1.8, -0.8), (-0.41, 1.25, -4.3), (1.08, 0.46, 1.9), (0.4, 0, 0.0), (0.4, 1.0, -5.38)):
+    prop('binder_notebook#1', 1.05, 0.66, 1.5, rot=90)
+    for t in ((0.4, 0, 4.9), (0.4, 0, -5.0), (-0.41, 1.8, -0.8), (-0.41, 1.25, -4.3), (1.05, 0.66, 1.95), (0.4, 0, 0.0), (0.4, 1.0, -5.38)):
         treat(*t)
 
 def bedroom():
     put('GothicBed_01', 6.9, 4.5, rot=270, collide='none', name='bed')
-    collider(5.88, 7.93, 0.3, 0.6, 3.76, 5.24, spot='the big bed'); collider(7.78, 7.93, 0, 1.53, 3.76, 5.24); collider(5.88, 5.98, 0, 0.9, 3.76, 5.24)
+    collider(5.98, 7.78, 0.3, 0.46, 3.76, 5.24, spot='the big bed'); collider(7.78, 7.93, 0, 1.53, 3.76, 5.24); collider(5.88, 5.98, 0, 0.9, 3.76, 5.24)
     for (x, z) in ((5.92, 3.8), (5.92, 5.2), (7.86, 3.8), (7.86, 5.2)): collider(x - 0.05, x + 0.05, 0, 0.3, z - 0.05, z + 0.05)
-    S['zones'].append(dict(kind='knead', b=[6.0, 7.7, 3.8, 5.2], y=0.6, name='the bed'))
-    S['zones'].append(dict(kind='nap', p=[6.6, 0.6, 4.5], r=0.7, name='the big bed'))
+    S['zones'].append(dict(kind='knead', b=[6.0, 7.7, 3.8, 5.2], y=0.46, name='the bed'))
+    S['zones'].append(dict(kind='nap', p=[6.6, 0.46, 4.5], r=0.7, name='the big bed'))
     S['zones'].append(dict(kind='under', b=[6.0, 7.75, 3.85, 5.15], name='the secret spot under the bed'))
     put('ClassicNightstand_01', 7.68, 3.4, rot=270)
     table_lamp(7.72, 0.7, 3.3)
@@ -399,12 +399,12 @@ def bedroom():
     wall_shelf(1.48, 1.7, 1.3, 3.7, 4.6); wall_shelf(1.48, 1.7, 1.85, 4.3, 5.3, spot='the bedroom shelf')
     area_light(4.5, 2.55, 3.0, 1.6, 1.2, 60)
     S['zones'].append(dict(kind='sun', b=[3.0, 5.6, 3.6, 5.2], name='the bedroom sunbeam'))
-    prop('throw_pillows_01#0', 7.3, 0.62, 4.1, rot=270); prop('throw_pillows_01#1', 7.3, 0.62, 4.9, rot=270)
+    prop('throw_pillows_01#0', 6.6, 0.47, 4.1, rot=270); prop('throw_pillows_01#1', 6.6, 0.47, 4.95, rot=270)
     prop('alarm_clock_01', 7.62, 0.7, 3.55, rot=270); prop('glass', 7.55, 0.7, 3.25)
     prop('ceramic_vase_01', 2.6, 1.21, 1.25); prop('standing_picture_frame_02', 3.3, 1.21, 1.2); prop('perfume', 3.05, 1.21, 1.3); prop('round_spectacles', 2.85, 1.21, 1.35)
     prop('potted_plant_04', 4.3, 0.6, 5.36); prop('planter_pot_clay', 7.86, 0.75, 3.1); prop('carved_wooden_elephant', 1.59, 1.3, 4.2, rot=90); prop('ceramic_vase_03', 1.59, 1.85, 4.8)
     prop('yarn', 3.2, 0, 3.0, col=0xB07FD9); prop('bell', 5.2, 0, 2.6); prop('mouse', 2.4, 0, 2.2); prop('sock', 5.3, 0, 1.6); prop('sock', 6.4, 0, 3.2); prop('sock', 2.6, 0, 4.6)
-    for t in ((6.9, 0, 4.5), (6.6, 0.6, 4.5), (3.0, 1.21, 1.3), (7.6, 1.11, 1.45), (1.59, 1.85, 5.1), (7.86, 0.75, 2.5), (4.3, 0.06, 4.55), (5.6, 0.1, 1.35), (2.05, 0.45, 4.85), (7.6, 0, 2.2)):
+    for t in ((6.9, 0, 4.5), (6.3, 0.46, 4.5), (3.0, 1.21, 1.3), (7.6, 1.11, 1.45), (1.59, 1.85, 5.1), (7.86, 0.75, 2.5), (4.3, 0.06, 4.55), (5.6, 0.1, 1.35), (2.05, 0.45, 4.85), (7.6, 0, 2.2)):
         treat(*t)
 
 def study():
@@ -413,8 +413,9 @@ def study():
     put('classic_laptop', 4.35, -4.95, rot=0, y=0.79, scale=0.8, collide='none')
     S['items'].append(dict(kind='laptop', p=[4.35, 0.82, -4.9], r=0.3, screen=[4.35, 1.03, -5.07], size=[0.3, 0.2]))
     put('desk_lamp_arm_01', 5.35, -5.15, rot=120, y=0.79, collide='none'); lamp_light(5.1, 1.35, -4.95, 30)
-    put('dining_chair_02', 4.6, -4.05, rot=180, collide=('seat', 0.47, 0.12))
-    put('drawer_cabinet', 2.35, -2.0 - 0.075 - 0.25, rot=180, cam=True, spot='the tall cabinet')
+    put('dining_chair_02', 4.6, -4.05, rot=180, collide=('seat', 0.45, 0.12))
+    put('drawer_cabinet', 2.35, -2.0 - 0.075 - 0.25, rot=180, collide='none')
+    collider(1.78, 2.92, 0, 1.77, -2.57, -2.08, cam=True, spot='the tall cabinet')
     put('small_wooden_table_01', 7.3, -2.0 - 0.075 - 0.25, rot=180, collide=('table', 0.05))
     put('chess_set', 7.3, -2.33, rot=0, y=0.533, scale=0.7, collide='none')
     S['items'].append(dict(kind='chess', p=[7.3, 0.6, -2.33], r=0.35))
@@ -446,9 +447,9 @@ def study():
     area_light(4.6, 2.55, -3.7, 1.6, 1.0, 70)
     prop('Ukulele_01', 7.75, 0, -4.3, rot=20, lean=1); prop('binder_notebook#0', 5.1, 0.79, -4.75, rot=20); prop('mug', 3.85, 0.79, -4.8, col=0xFFFFFF)
     prop('ceramic_vase_02', 6.2, 1.6, -2.18); prop('garden_gnome', 6.8, 1.6, -2.18, rot=180); prop('gamepad', 4.6, 0, -3.3, scale=0.5)
-    prop('marble_bust_01', 2.35, 1.88, -2.33, rot=180, scale=0.8); prop('standing_picture_frame_01', 1.6, 1.5, -4.9, rot=90); prop('ceramic_vase_04', 1.6, 1.5, -5.15)
+    prop('marble_bust_01', 2.35, 1.77, -2.33, rot=180, scale=0.8); prop('standing_picture_frame_01', 1.6, 1.5, -4.9, rot=90); prop('ceramic_vase_04', 1.6, 1.5, -5.15)
     prop('baseball_01', 5.6, 0, -3.5); prop('paper', 4.9, 0.79, -5.05); prop('paper', 4.75, 0.79, -4.7); prop('paper', 4.0, 0.79, -5.1); prop('ink', 5.3, 0.79, -4.7)
-    for t in ((4.6, 0, -4.95), (4.5, 1.18, -2.25), (4.5, 0.722, -2.57), (2.35, 1.88, -2.33), (6.45, 1.6, -2.18), (7.35, 0.42, -4.95), (1.6, 1.5, -4.7), (4.6, 0.79, -5.2), (7.6, 0, -2.6), (6.55, 0.44, -2.9)):
+    for t in ((4.6, 0, -4.95), (4.5, 1.18, -2.25), (4.5, 0.722, -2.57), (2.7, 1.77, -2.33), (6.45, 1.6, -2.18), (7.35, 0.42, -4.95), (1.6, 1.5, -4.7), (4.6, 0.79, -5.2), (7.6, 0, -2.6), (6.55, 0.44, -2.9)):
         treat(*t)
 
 def bath():

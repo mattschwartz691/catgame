@@ -201,7 +201,7 @@ export class CatModel {
         const p0 = new THREE.Vector3(s * 0.03, nose.y - 0.018 - k * 0.0035, nose.z - 0.038);
         const p2 = p0.clone().add(new THREE.Vector3(s * Math.cos(a) * len, Math.sin(a) * len - 0.012, -0.015));
         const p1 = p0.clone().lerp(p2, 0.5).add(new THREE.Vector3(0, 0.012, 0.012));
-        const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(p0, p1, p2), 8, 0.00075, 4), wm);
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(p0, p1, p2), 8, 0.00055, 4), wm);
         this.whiskers.add(tube);
       }
       for (let k = 0; k < 2; k++) {       // brow whiskers

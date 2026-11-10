@@ -309,7 +309,14 @@ shade = (0.72 + 0.28 * cav)[:, None]
 os.makedirs(ASSETS, exist_ok=True)
 tex = {}
 for name, fn in COATS.items():
-    c = np.clip(fn(Pt, Wt, partst, nt, mt), 0, 1) * shade
+    c = np.clip(fn(Pt, Wt, partst, nt, mt), 0, 1)
+    # the little "Y" of the mouth under the nose
+    H_ = cat_def.hs
+    dm = np.full(len(Pt), 1e3, dtype=F)
+    for (a_, b_) in ((V(0, .364, .398), V(0, .349, .392)), (V(0, .349, .392), V(.021, .341, .384)), (V(0, .349, .392), V(-.021, .341, .384))):
+        dd, _ = sd_roundcone(Pt, H_(a_), H_(b_), .0, .0); dm = np.minimum(dm, dd)
+    mouth = (1 - sstep(.0016, .0034, dm)) * (Pt[:, 2] > H_(V(0, 0, .36))[2])
+    c = mix(c, rgb(0x2A1612) if name != 'miso' else rgb(0x120A08), mouth * .85) * shade
     img = np.zeros((RES, RES, 3), dtype=F); img[filled] = c
     img = dilate(img, filled)
     tex[name] = img
