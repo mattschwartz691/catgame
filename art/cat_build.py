@@ -347,13 +347,14 @@ def coat_moons(Pq, W, parts, n, m):
     return col
 
 def coat_noons(Pq, W, parts, n, m):
-    """Noons: dark tabby cap, saddle and tail over white; white blaze, muzzle, chest, legs and belly."""
+    """Noons: black cap, saddle and tail over white; white blaze, muzzle, chest, legs and belly."""
     x, y, z = Pq[:, 0], Pq[:, 1], Pq[:, 2]; ax = np.abs(x)
     hx, hy, hz, Ph = head_coords(Pq)
-    dark = rgb(0x1B1715)
-    tab = tabby(Pq, n, m, rgb(0x40372F), rgb(0x6C5E49), dark, 47, body_s=.7)
+    dark = rgb(0x0E0E12)
+    nzb = fbm(Pq, 10.0, 4, 5)
+    tab = np.tile(rgb(0x2B2B33), (len(Pq), 1))                                                # same black as Domino
+    tab = mix(tab, rgb(0x3C3C48), m['top'] * .5 + (nzb - .5) * .3)
     hd = np.clip(m['head'], 0, 1)
-    tab = mix(tab, dark, hd * sstep(.418, .45, hy) * (1 - sstep(.055, .095, hx)) * .88)      # near-black crown
     e = (fbm(Pq, 6.0, 3, 53) - .5) * .075; e2 = (fbm(Pq, 22.0, 3, 59) - .5) * .02
     yb = np.interp(z, [-.3, -.2, -.06, .08, .16, .27], [.13, .17, .255, .30, .335, .42]).astype(F) + e + e2
     w = sstep(yb + .01, yb - .01, y)
@@ -368,7 +369,6 @@ def coat_noons(Pq, W, parts, n, m):
     wh = np.clip(np.maximum.reduce([lower, blaze, m['muzzle']]), 0, 1)
     smudge = 1 - sstep(.0065, .0115, norm(Ph - V(-.019, .367, .388)))                            # the tabby freckle beside the nose
     wh = wh * (1 - smudge)
-    tab = mix(tab, rgb(0x8C6E50), smudge * .7)
     w = w * (1 - hd) + wh * hd
     white = mix(np.tile(rgb(0xF7F4EE), (len(Pq), 1)), rgb(0xECE4D8), fbm(Pq, 12.0, 3, 67) * .6)
     col = mix(tab, white, np.clip(w, 0, 1))

@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 
 export const COATS = [
-  { id: 'noons', name: 'Noons', desc: 'Tabby & white', eye: [0x6c7a1c, 0xcfd45c], lid: 0x2a2420, swatch: { head: '#40372f', ear: '#2a2420', muzzle: '#f7f4ee', eye: '#b9c24a', nose: '#e29a92' }, fur: 0.85, tint: 0xf4f1ea, sheen: 0xd8d2c8 },
+  { id: 'noons', name: 'Noons', desc: 'Black & white', eye: [0x6c7a1c, 0xcfd45c], lid: 0x1b1b20, swatch: { head: '#24242a', ear: '#1b1b20', muzzle: '#f7f4ee', eye: '#b9c24a', nose: '#e29a92' }, fur: 0.9, tint: 0xe8f0ff, sheen: 0xaebbd8 },
   { id: 'moons', name: 'Moons', desc: 'Brown tabby', eye: [0x5f8a2a, 0xd6dc6c], lid: 0x3a2e24, swatch: { head: '#6f5f4b', ear: '#5a4a38', muzzle: '#dccbb0', eye: '#b4cf58', nose: '#a4584e' }, fur: 0.85, tint: 0xfff2e2, sheen: 0xe6d4b8 },
   { id: 'mango', name: 'Mango', desc: 'Orange tabby', eye: [0x5c8f1e, 0xc8e05a], lid: 0xc9701c, swatch: { head: '#e08a30', ear: '#c9701c', muzzle: '#fbebd0', eye: '#8fc43c', nose: '#e07f86' }, fur: 1.0, tint: 0xfff0e0, sheen: 0xffd9a8 },
   { id: 'domino', name: 'Domino', desc: 'Tuxedo', eye: [0xb98a10, 0xffe066], lid: 0x1b1b20, swatch: { head: '#24242a', ear: '#1b1b20', muzzle: '#f7f5f0', eye: '#f2c93a', nose: '#e8a0aa' }, fur: 0.9, tint: 0xe8f0ff, sheen: 0xaebbd8 },
