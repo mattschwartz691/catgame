@@ -31,20 +31,18 @@ const GradeShader = {
 export const TIERS = {
   high: { post: true, bloom: true, msaa: 4, pr: 2, shadow: 4096, shells: 16 },
   medium: { post: true, bloom: true, msaa: 2, pr: 1.3, shadow: 2048, shells: 8 },
-  low: { post: false, bloom: false, msaa: 0, pr: 1.2, shadow: 1024, shells: 6 },
-  potato: { post: false, bloom: false, msaa: 0, pr: 1, shadow: 1024, shells: 4 },
+  low: { post: false, bloom: false, msaa: 0, pr: 1, shadow: 1024, shells: 6 },
+  lowest: { post: false, bloom: false, msaa: 0, pr: 0.7, shadow: 512, shells: 3 },
 };
-const ORDER = ['potato', 'low', 'medium', 'high'];
+const ORDER = ['lowest', 'low', 'medium', 'high'];
 
 export function pickTier() {
   const q = new URLSearchParams(location.search).get('q');
   if (q && TIERS[q]) return q;
   try { const s = localStorage.getItem('quality'); if (s && TIERS[s]) return s; } catch {}
   const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
-  const mem = navigator.deviceMemory || (mobile ? 4 : 8);
   if (!mobile) return 'high';
-  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent) || /Mac/.test(navigator.platform);   // no deviceMemory there; recent iPhones are quick
-  return ios || mem >= 6 ? 'medium' : 'low';
+  return 'low';        // phones start light; the menu's quality button goes up from there
 }
 
 export class Renderer {

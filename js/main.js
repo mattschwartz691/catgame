@@ -91,7 +91,7 @@ function setState(s) {
   ui.setState(s);
   input.enabled = s === 'play';
   input.jx = input.jy = 0; input.jump = input.paw = false;
-  if (s === 'play') { introT = 1.3; camPitch = 0.5; game.onEnterPlay(); }
+  if (s === 'play') { introT = 1.3; camPitch = 0.34; game.onEnterPlay(); }
   else { camPitch = 0.16; cat.vel.set(0, 0, 0); camYaw = cat.yaw + 0.5; cat.stopAction(); game.onLeavePlay(); }
   resize();
 }
@@ -120,7 +120,7 @@ ui.onPick = (i) => {
 ui.onPlay = () => { initAudio(); loops.ambience.start(); sfx.pop(); setState('play'); };
 ui.onMenu = () => setState('menu');
 ui.buildMenu(COATS, coatIdx);
-const QUAL = ['auto', 'low', 'medium', 'high'];
+const QUAL = ['auto', 'lowest', 'low', 'medium', 'high'];
 let qual = 'auto'; try { qual = localStorage.getItem('quality') || 'auto'; } catch {}
 game.qualityName = qual; game.optUI(); R.locked = qual !== 'auto';
 ui.onQuality = () => {
@@ -134,7 +134,7 @@ game.shakeCam = (a) => { shake = Math.max(shake, a); };
 // ------------------------------------------------------------------ loop
 const dir = new THREE.Vector3(), tgt = new THREE.Vector3(), _cw = new THREE.Vector3();
 const ctl = { mx: 0, mz: 0, jump: false, jumpPressed: false, pawPressed: false, pawHeld: false, meowPressed: false };
-let last = performance.now(), ambS = 0.5, liftS = 0, frameNo = 0;
+let last = performance.now(), ambS = 0.5, liftS = 0, frameNo = 0, lookUp = 0;
 const dbg = { manual: false, freezeCam: false, every: +(new URLSearchParams(location.search).get('every') || 0) };
 
 function step(dt) {
@@ -167,7 +167,7 @@ function frame(now) {
 
   const hs = Math.hypot(cat.vel.x, cat.vel.z);
   if (state === 'play') {
-    camYaw -= input.lookX * 0.0055; camPitch = clamp(camPitch + input.lookY * 0.004, 0.05, 1.35);
+    camYaw -= input.lookX * 0.0055; camPitch = clamp(camPitch + input.lookY * 0.0065, -0.75, 1.4);
     input.lookX = input.lookY = 0;
     if (introT > 0) { introT -= dt; camYaw += angDiff(camYaw, cat.yaw + Math.PI) * (1 - Math.exp(-5 * dt)); }
     else if (hs > 0.3 && t - input.lastLook > 1.2) {
@@ -199,7 +199,7 @@ function frame(now) {
   const wantD = camDist * (1 + sleepy * 0.12) * (1 + world.outW * 0.55);       // pull back for a wider view out of doors
   let bestLift = 0, bestClear = -1;
   for (let k = 0; k < 6; k++) {
-    const lift = k * 0.2, pt = Math.min(1.42, camPitch + sleepy * 0.25 + lift), c0 = Math.cos(pt);
+    const lift = k * 0.2, pt = Math.min(1.45, Math.max(0.04, camPitch) + sleepy * 0.25 + lift), c0 = Math.cos(pt);
     dir.set(Math.sin(camYaw) * c0, Math.sin(pt), Math.cos(camYaw) * c0);
     _cw.copy(tgt).addScaledVector(dir, wantD);
     const c = world.viewBlock(tgt, _cw);
@@ -207,7 +207,7 @@ function frame(now) {
     if (c > 0.9) break;
   }
   liftS = damp(liftS, bestLift, bestLift > liftS ? 8 : 2, dt);
-  const pitch = Math.min(1.42, camPitch + sleepy * 0.25 + liftS);
+  const pitch = Math.min(1.45, Math.max(0.04, camPitch) + sleepy * 0.25 + liftS);
   const cp = Math.cos(pitch);
   dir.set(Math.sin(camYaw) * cp, Math.sin(pitch), Math.cos(camYaw) * cp);
   _cw.copy(tgt).addScaledVector(dir, wantD);
@@ -218,12 +218,13 @@ function frame(now) {
   camera.position.copy(tgt).addScaledVector(dir, curDist);
   if (shake > 0.001) { camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake; shake *= Math.exp(-9 * dt); }
   { const cf = Math.min(world.floorY(cat.pos.y), world.baseY(camera.position.x, camera.position.z)) + 0.12; if (camera.position.y < cf) camera.position.y = cf; }
-  camera.lookAt(tgt);
+  lookUp = damp(lookUp, Math.max(0, 0.04 - camPitch) * 2.6, 14, dt);          // tilting past level looks up, over the cat
+  if (lookUp > 0.001) { _cw.copy(tgt); _cw.y += lookUp; camera.lookAt(_cw); } else camera.lookAt(tgt);
   sky.position.copy(camera.position);
   world.camFade(tgt, camera.position, dbg.every ? 1 : dt);
 
   // the sun does not move: on lighter tiers refresh its shadow map every other frame
-  frameNo++; world.sun.shadow.autoUpdate = false; if (R.tierName === 'high' || frameNo % 2 === 0) world.sun.shadow.needsUpdate = true;
+  frameNo++; world.sun.shadow.autoUpdate = false; if (R.tierName === 'high' || frameNo % (R.tierName === 'lowest' ? 3 : 2) === 0) world.sun.shadow.needsUpdate = true;
   game.frame(dt, t, state === 'play');
   if (!dbg.every) R.adapt(dt);
   R.render(t, game.fade);

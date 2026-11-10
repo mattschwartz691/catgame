@@ -11,7 +11,7 @@ const KEY = 'catabout.mg';
 const B0 = -2.9, ATTIC = 5.8;
 
 const STATIONS = {
-  laser: { name: 'Laser Chase', area: 'home', pos: [-3.6, 0, 3.3], range: 9, hint: 'Paw or pounce on the red dot. 40 seconds.', task: ['mgLaser', 12] },
+  laser: { name: 'Laser Chase', area: 'home', pos: [-3.6, 0, 3.3], range: 9, hint: 'Step on the red dot for 1. Paw it for 2, pounce for 3. 40 seconds.', task: ['mgLaser', 12] },
   bird: { name: 'Stalk the Sparrow', area: 'home', pos: [29.0, 0, 22.6], range: 14, hint: 'Creep while it pecks. Freeze when it looks up. Then pounce.', task: ['mgBird', 3] },
   lava: { name: 'The Floor Is Lava', area: 'colonial', pos: [32.0, B0, 4.1], range: 9, hint: 'Hop the cushions, grab every fish, never touch the floor.', task: ['mgLava', 9] },
   voles: { name: 'Vole Patrol', area: 'colonial', pos: [25.8, 0, -6.6], range: 8, hint: 'Bop the voles. Leave the gnome alone. 40 seconds.', task: ['mgVoles', 15] },
@@ -113,8 +113,10 @@ export class Minigames {
     else {
       a.hold -= dt; d.x = to.x + Math.sin(t * 9) * 0.03; d.z = to.z + Math.cos(t * 11) * 0.03;       // the hand holding the pointer is never quite still
       const cd = Math.hypot(this.cat.pos.x - d.x, this.cat.pos.z - d.z);
-      if (a.hold <= 0 || (cd < 0.75 && Math.random() < dt * 2.5)) this.laserHop(a);             // it darts off just as you close in
+      if (a.hold <= 0 || (cd < 0.75 && Math.random() < dt * 1.6)) this.laserHop(a);             // it darts off just as you close in
     }
+    // simply walking onto the dot counts; a paw or pounce is worth more
+    if (Math.hypot(this.cat.pos.x - d.x, this.cat.pos.z - d.z) < 0.3 && this.cat.pos.y < 0.3) this.laserGot(a, 1);
     a.beam.position.copy(a.from).lerp(d, 0.5); a.beam.scale.y = a.from.distanceTo(d); a.beam.lookAt(d); a.beam.rotateX(Math.PI / 2);
     this.cat.lookAt = d;
     this.hud(a, `Caught ${a.score}`, left / a.time);
@@ -127,8 +129,12 @@ export class Minigames {
   paw_laser(a, p, pounce) {
     const d = a.dot.position;
     if (Math.hypot(p.x - d.x, p.z - d.z) > (pounce ? 0.55 : 0.4) || p.y > 0.5) return false;
-    a.score += pounce ? 2 : 1; sfx.catch(); this.fx.burst(d, 8, [0xff5a5a, 0xffffff], { speed: 1.4, size: 0.014, life: 0.5 });
-    this.laserHop(a); a.dot.position.copy(a.tgt); return true;
+    this.laserGot(a, pounce ? 3 : 2); return true;
+  }
+  laserGot(a, n) {
+    a.score += n; sfx.catch(); this.fx.burst(a.dot.position, 4 + n * 3, [0xff5a5a, 0xffffff], { speed: 1.4, size: 0.014, life: 0.5 });
+    if (n > 1) this.ui.toast('+' + n + (n > 2 ? ' pounce!' : ' paw!'));
+    this.laserHop(a); a.dot.position.copy(a.tgt);
   }
 
   // ============================================================ 2. Stalk the Sparrow (the lawn across the street)
