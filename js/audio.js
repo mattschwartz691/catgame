@@ -1208,32 +1208,87 @@ function ambienceTick(h) {
   }
 }
 
-/* ───────────────────────── generative music ───────────────────────── */
+/* ───────────────────────── composed music: "Cat About the House" theme ───────────────────────── */
+//
+// One 32-bar tune (A A B A, swung eighths, written in C) played by a single lookahead scheduler.
+// The four moods are arrangements of the same tune; a mood change takes effect at the next bar line
+// and keeps the place in the form, so the melody carries straight on in the new feel.
+//
+//   calm     marimba lead, two-feel bass, soft chord + brushes
+//   playful  pizzicato + marimba lead, walking bass, off-beat chord stabs, brushes / shaker / kick
+//   zoomies  same, much faster, lead doubled an octave up, four-on-the-floor + snare + hats
+//   sleepy   music-box lullaby: melody over a soft pad, no bass line, no drums
 
-const MOODS = { calm: { bpm: 72 }, playful: { bpm: 96 }, zoomies: { bpm: 132 }, sleepy: { bpm: 56 } };
-const QUAL = {
-  maj7: [0, 4, 7, 11], maj9: [0, 4, 7, 11, 14], add9: [0, 4, 7, 14], six9: [0, 4, 7, 9, 14],
-  m7: [0, 3, 7, 10], m9: [0, 3, 7, 10, 14], sus: [0, 5, 7, 14],
+const MOODS = {
+  calm: { bpm: 100, swing: 0.62 }, playful: { bpm: 126, swing: 0.64 },
+  zoomies: { bpm: 168, swing: 0.57 }, sleepy: { bpm: 76, swing: 0.58 },
 };
-// degree → [semitones above tonic, possible chord qualities]
-const DEG = {
-  I: [0, ['maj7', 'maj9', 'add9', 'six9']], ii: [2, ['m7', 'm9']], iii: [4, ['m7']],
-  IV: [5, ['maj7', 'maj9', 'add9']], V: [7, ['add9', 'sus', 'six9']], vi: [9, ['m7', 'm9']],
+const THEME_KEY = 0;            // transpose the whole tune (semitones); 0 = C major
+const NOTE_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+function noteNum(s) {           // 'C#5' → 73
+  let pc = NOTE_PC[s[0]], i = 1;
+  if (s[i] === '#') { pc++; i++; } else if (s[i] === 'b') { pc--; i++; }
+  return 12 * (+s.slice(i) + 1) + pc;
+}
+// chord → [root pitch class, intervals of the upper voices]
+const CHORDS = {
+  C6: [0, [4, 7, 9]], C7: [0, [4, 7, 10]], A7: [9, [4, 7, 10]], Dm7: [2, [3, 7, 10]], D7: [2, [4, 7, 10]],
+  G7: [7, [4, 7, 10]], F6: [5, [4, 7, 9]], 'F#dim': [6, [3, 6, 9]],
 };
-// Markov table: weighted next-chord choices
-const NEXT = {
-  I: ['IV', 'IV', 'IV', 'vi', 'vi', 'vi', 'ii', 'ii', 'iii', 'V'],
-  ii: ['V', 'V', 'V', 'V', 'IV', 'iii', 'I'],
-  iii: ['vi', 'vi', 'vi', 'IV', 'IV', 'IV', 'ii'],
-  IV: ['I', 'I', 'I', 'V', 'V', 'V', 'ii', 'vi'],
-  V: ['I', 'I', 'I', 'I', 'vi', 'vi', 'IV'],
-  vi: ['IV', 'IV', 'IV', 'ii', 'ii', 'ii', 'V', 'iii'],
-};
+// mel: 'E5/1 -/2 ...' (note/length in eighths, '-' = rest, must add up to 8) · bass: four quarter notes
+// chords: 'C6' or 'Dm7 G7' (two beats each)
+function themeBar(mel, bass, chords, brk) {
+  const b = { mel: [], bass: [], ch: [], brk: !!brk, src: mel, chords };
+  let pos = 0;
+  for (const tok of mel.split(' ')) {
+    const p = tok.split('/'), d = +p[1];
+    if (p[0] !== '-') b.mel.push([pos, noteNum(p[0]), d]);
+    pos += d;
+  }
+  for (const n of bass.split(' ')) b.bass.push(n === '-' ? 0 : noteNum(n));
+  const cs = chords.split(' ');
+  for (let i = 0; i < cs.length; i++) {
+    const c = CHORDS[cs[i]], notes = [];
+    for (const iv of c[1]) { let n = 48 + ((c[0] + iv) % 12); while (n < 55) n += 12; notes.push(n); }   // G3..F#4
+    notes.sort((x, y) => x - y);
+    b.ch.push({ pos: (i * 8) / cs.length, len: 8 / cs.length, notes, root: 48 + c[0] });
+  }
+  return b;
+}
+const HOOK = 'C5/1 E5/1 G5/1 A5/2 G5/1 E5/2';          // up the arpeggio, lean on the off-beat, fall back
+const TB = themeBar;
+const PHRASE_A = [
+  TB(HOOK,                                      'C3 E3 G3 E3',   'C6'),
+  TB('C#5/1 E5/1 G5/1 A5/2 G5/1 E5/2',          'A2 C#3 E3 Eb3', 'A7'),        // same shape, one sly semitone up
+  TB('F5/3 D5/1 F5/1 A5/1 G5/2',                'D3 F3 A2 Ab2',  'Dm7'),       // answer
+  TB('-/1 F5/1 D5/1 B4/2 D5/1 G4/2',            'G2 B2 D3 B2',   'G7'),
+  TB('C5/1 E5/1 G5/1 C6/2 A5/1 G5/2',           'C3 E3 G3 E3',   'C6'),        // hook again, reaching higher
+  TB('C#5/1 E5/1 G5/1 Bb5/2 A5/1 G5/2',         'A2 C#3 E3 Eb3', 'A7'),
+  TB('F5/1 A5/1 G5/1 F5/1 E5/1 D5/1 B4/1 D5/1', 'D3 A2 G2 B2',   'Dm7 G7'),    // tumble home
+];
+const END_OPEN  = TB('E5/3 G5/1 E5/2 -/2',            'C3 E3 G2 B2',  'C6 G7');   // 1st time: hangs on the third
+const END_TO_B  = TB('C5/3 G4/1 C5/2 -/2',            'C3 G2 Bb2 E3', 'C6 C7');   // 2nd time: tonic, leans toward F
+const END_LOOP  = TB('C5/3 G4/1 C5/1 G4/1 A4/1 B4/1', 'C3 E3 G2 B2',  'C6 G7');   // last time: tonic + pickup into the loop
+const PHRASE_B = [
+  TB('A5/3 F5/1 A5/2 C6/2',                     'F2 A2 C3 A2',   'F6'),
+  TB('A5/3 F#5/1 A5/2 C6/2',                    'F#2 A2 C3 A2',  'F#dim'),
+  TB('G5/3 E5/1 G5/1 E5/1 C5/2',                'G2 C3 E3 Bb2',  'C6'),
+  TB('C#5/2 E5/2 G5/1 E5/1 A5/2',               'A2 C#3 E3 C#3', 'A7'),
+  TB('F5/3 D5/1 F5/2 A5/2',                     'D3 F3 A2 C3',   'Dm7'),
+  TB('F#5/3 D5/1 F#5/2 A5/2',                   'D3 F#3 A2 F#2', 'D7'),
+  TB('G5/2 A5/1 B5/2 A5/1 G5/2',                'G2 B2 D3 F3',   'G7'),
+  TB('D5/1 -/4 G4/1 A4/1 B4/1',                 'G2 - - B2',     'G7', true),  // stop-time break + pickup
+];
+const INTRO = TB('-/5 G4/1 A4/1 B4/1', 'G2 B2 D3 B2', 'G7');
+const FORM = [].concat(PHRASE_A, [END_OPEN], PHRASE_A, [END_TO_B], PHRASE_B, PHRASE_A, [END_LOOP]);   // 32 bars
 
 const M = {
-  playing: false, mood: 'calm', cur: 'calm', next: 0, step: 0, bar: 0,
-  key: 0, deg: 'I', chord: [], pcs: [], bass: 36, scale: [], mel: 5, motif: new Array(16).fill(false),
-  arpDir: 1, arpI: 0, padV: null, live: new Set(),
+  playing: false, mood: 'calm', cur: 'calm',
+  next: 0,          // audio time of the next eighth-note step
+  barT: 0,          // audio time of the current bar line
+  step: 0,          // eighth within the bar, 0..7
+  bar: -1,          // -1 = intro, then 0..31 through FORM
+  live: new Set(),
 };
 const B = {};   // instrument buses
 
@@ -1296,6 +1351,13 @@ function pluckNote(t, m, vel, long) {
   perc(g.gain, t, 0.003, vel * 0.34, d);
   chain(a, lp); chain(s, gn(0.35), lp); chain(lp, g, v.out);
 }
+// marimba-ish bar: fundamental + the tuned 4th-harmonic "knock" + a mallet click
+function marimbaNote(t, m, dur, vel) {
+  const f = mtof(m), v = mv(B.lead);
+  ping(v, t, f, clamp(dur, 0.28, 0.9) + 0.18, vel * 0.3, 'sine', null, 0, 0.003);
+  ping(v, t, f * 4, 0.1, vel * 0.075, 'sine');
+  ping(v, t, f * 9.2, 0.03, vel * 0.022, 'sine');
+}
 function bassNote(t, m, dur, vel) {
   const f = mtof(m), v = mv(B.bass), t1 = t + dur + 0.3;
   const a = mosc(v, 'sine', f, t, t1), b = mosc(v, 'triangle', f, t, t1);
@@ -1324,123 +1386,90 @@ function percHit(t, kind, vel) {
   }
 }
 
-function setChord(deg) {
-  const d = DEG[deg], q = QUAL[pick(d[1])], root = M.key + d[0];
-  M.deg = deg; M.chord = []; M.pcs = [];
-  for (let i = 0; i < q.length; i++) {
-    if (q.length > 4 && i === 0) continue;                   // rootless when the voicing is thick
-    let n = 48 + ((root + q[i]) % 12);
-    while (n < 57) n += 12;                                   // keep voices in A3..G#4 → smooth voice-leading
-    M.chord.push(n);
-  }
-  M.chord.sort((a, b) => a - b);
-  for (let i = 0; i < q.length; i++) M.pcs.push((root + q[i]) % 12);
-  M.bass = 36 + (root % 12); if (M.bass > 45) M.bass -= 12;
-}
-function newMotif(evenP, oddP) {
-  for (let i = 0; i < 16; i++) M.motif[i] = chance(i % 4 === 0 ? evenP * 1.2 : i % 2 === 0 ? evenP : oddP);
-}
-function melodyNote(strong, lo, hi) {
-  // random walk on the pentatonic scale, pulled back toward the middle, landing on chord tones on strong beats
-  const S = M.scale, mid = (lo + hi) / 2;
-  let i = M.mel + pick([-2, -1, -1, -1, 0, 1, 1, 1, 2]);
-  if (S[clamp(i, 0, S.length - 1)] > mid + 5 && chance(0.6)) i -= 1;
-  if (S[clamp(i, 0, S.length - 1)] < mid - 5 && chance(0.6)) i += 1;
-  i = clamp(i, 0, S.length - 1);
-  while (S[i] < lo && i < S.length - 1) i++;
-  while (S[i] > hi && i > 0) i--;
-  if (strong && M.pcs.indexOf(S[i] % 12) < 0) {
-    for (const d of [1, -1, 2, -2]) {
-      const j = i + d;
-      if (j >= 0 && j < S.length && S[j] >= lo && S[j] <= hi && M.pcs.indexOf(S[j] % 12) >= 0) { i = j; break; }
-    }
-  }
-  M.mel = i;
-  return S[i];
-}
-const hum = () => rnd(-0.006, 0.006);    // timing humanisation
+const hum = () => rnd(0, 0.007);          // timing humanisation (only ever late, never before the grid)
+const K = (m) => m + THEME_KEY;
 
-function strum(t, dur, vel, n) {
-  const c = M.chord, cnt = n || c.length;
-  for (let i = 0; i < cnt; i++) epNote(t + i * rnd(0.012, 0.028), c[c.length - cnt + i], dur, vel * rnd(0.85, 1));
+function stab(t, ch, dur, vel) {           // short rolled chord on the electric piano
+  for (let i = 0; i < ch.notes.length; i++) epNote(t + i * 0.012, K(ch.notes[i]), dur, vel * (0.88 + i * 0.06));
 }
 
-const PATTERN = {
-  calm(t, s, bar, spb) {
-    if (s === 0) {
-      if (bar % 2 === 0) strum(t, spb * 7, 0.52);
-      else if (chance(0.6)) strum(t + hum(), spb * 3, 0.3, 3);
-      bassNote(t, M.bass, spb * 1.8, 0.75);
-    }
-    if (s === 8 && chance(0.65)) bassNote(t + hum(), M.bass + (chance(0.6) ? 7 : 0), spb * 1.2, 0.5);
-    if (s === 14 && chance(0.2)) bassNote(t, M.bass + 12, spb * 0.4, 0.35);
-    if ((s === 6 || s === 10) && chance(0.22)) epNote(t + hum(), pick(M.chord) + 12, spb, 0.22);
-    if (M.motif[s] && s % 2 === 0 && chance(0.85)) epNote(t + hum(), melodyNote(s % 8 === 0, 69, 86), spb * rnd(0.9, 1.8), rnd(0.36, 0.5), B.lead);
-    if (s === 4 || s === 12) percHit(t + hum(), 'brush', rnd(0.4, 0.55));
-    if (s % 2 === 0 && chance(0.5)) percHit(t + hum(), 'shaker', rnd(0.2, 0.4));
-  },
-  playful(t, s, bar, spb) {
-    if (s === 0 && bar % 2 === 0) strum(t, spb * 2, 0.36);
-    if (s === 6 || s === 14) strum(t + hum(), 0.16, s === 6 ? 0.36 : 0.3, 3);
-    if (s === 0) bassNote(t, M.bass, spb * 0.8, 0.8);
-    if (s === 6) bassNote(t + hum(), M.bass + 12, spb * 0.3, 0.55);
-    if (s === 8) bassNote(t + hum(), M.bass + 7, spb * 0.7, 0.7);
-    if (s === 14 && chance(0.7)) bassNote(t + hum(), M.bass + (chance(0.5) ? 12 : 5), spb * 0.3, 0.5);
-    if (M.motif[s] && chance(0.9)) pluckNote(t + hum(), melodyNote(s % 8 === 0, 67, 88), rnd(0.55, 0.8), s % 4 === 0);
-    if (s === 0 || s === 8) percHit(t, 'kick', 0.5);
-    if (s === 4 || s === 12) percHit(t + hum(), 'brush', 0.6);
-    if (s % 2 === 0) percHit(t + hum(), 'shaker', s % 4 === 2 ? 0.45 : 0.28);
-    if (s === 10 && chance(0.35)) percHit(t, 'rim', 0.4);
-    if (s === 15 && chance(0.25)) percHit(t, 'rim', 0.25);
-  },
-  zoomies(t, s, bar, spb) {
-    if (s % 4 === 0) percHit(t, 'kick', s === 0 ? 0.75 : 0.62);
-    if (s === 4 || s === 12) percHit(t, 'snare', 0.6);
-    if (s % 2 === 0) percHit(t + hum(), 'hat', s % 4 === 2 ? 0.75 : 0.45); else if (chance(0.55)) percHit(t + hum(), 'hat', 0.3);
-    if (s === 14 && bar % 4 === 3) percHit(t, 'snare', 0.4);
-    // arpeggio across two octaves of the chord
-    const c = M.chord, span = c.length * 2;
-    if (s === 0 && bar % 2 === 0) { M.arpDir = pick([1, 1, -1]); M.arpI = M.arpDir > 0 ? 0 : span - 1; }
-    const idx = ((M.arpI % span) + span) % span;
-    pluckNote(t + hum(), c[idx % c.length] + 12 * ((idx / c.length) | 0) + 12, s % 4 === 0 ? 0.62 : 0.42, false);
-    M.arpI += M.arpDir; if (chance(0.12)) M.arpI += M.arpDir;
-    if (s % 2 === 0) bassNote(t, M.bass + (s % 4 === 2 ? 12 : 0), spb * 0.42, s % 4 === 0 ? 0.8 : 0.55);
-    if (s === 0 || ((s === 6 || s === 11) && chance(0.5))) strum(t, 0.14, 0.34, 3);
-    if (M.motif[s] && s % 2 === 0 && chance(0.8)) epNote(t, melodyNote(s % 8 === 0, 74, 91), spb * 0.9, 0.42, B.lead);
-  },
-  sleepy(t, s, bar, spb) {
-    if (s === 0 && bar % 2 === 0) {
-      const c = M.chord;
-      for (let i = 0; i < c.length; i++) padNote(t + i * 0.05, c[i], spb * 8 - 0.3, 0.55);
-      padNote(t, M.bass + 12, spb * 8 - 0.3, 0.5);
-      bassNote(t, M.bass, spb * 5, 0.4);
-    }
-    if (M.motif[s] && s % 2 === 0 && chance(0.85)) boxNote(t + hum() * 2, melodyNote(s % 8 === 0, 76, 93), rnd(0.5, 0.8));
-  },
-};
-const MOTIF_P = { calm: [0.3, 0], playful: [0.48, 0.14], zoomies: [0.22, 0], sleepy: [0.3, 0] };
+// Everything that sounds on one eighth-note step `s` of bar `b`. e = straight eighth length (s), spb = beat length.
+function musicStep(t, b, s, barIdx, mood, spb) {
+  const e = spb / 2, onBeat = (s & 1) === 0, q = s >> 1;
+  let ch = b.ch[0];
+  for (let i = 1; i < b.ch.length; i++) if (b.ch[i].pos <= s) ch = b.ch[i];
+  const chordStart = ch.pos === s;
+  const quiet = b.brk && s > 0;            // stop-time bar: the band drops out under the pickup
 
-function musicStep(t) {
-  if (M.step === 0) {
-    if (M.cur !== M.mood) { M.cur = M.mood; newMotif(MOTIF_P[M.cur][0], MOTIF_P[M.cur][1]); }
-    const every = M.cur === 'zoomies' ? 1 : 2;
-    if (M.bar % every === 0 && M.bar > 0) setChord(pick(NEXT[M.deg]));
-    if (M.bar % 4 === 0 && chance(0.7)) newMotif(MOTIF_P[M.cur][0], MOTIF_P[M.cur][1]);
-    else if (chance(0.3)) { const i = (Math.random() * 16) | 0; M.motif[i] = !M.motif[i] && i % 2 === 0; }
+  // lead
+  for (let i = 0; i < b.mel.length; i++) {
+    const n = b.mel[i];
+    if (n[0] !== s) continue;
+    const m = K(n[1]), d = n[2] * e, acc = s === 3 ? 1 : s === 0 ? 0.95 : onBeat ? 0.86 : 0.78;
+    if (mood === 'calm') marimbaNote(t + hum(), m, d * 1.3, 0.66 * acc);
+    else if (mood === 'playful') { pluckNote(t, m, 0.72 * acc, n[2] >= 2); marimbaNote(t, m, d, 0.4 * acc); }
+    else if (mood === 'zoomies') { pluckNote(t, m + 12, 0.56 * acc, false); pluckNote(t, m, 0.5 * acc, n[2] >= 2); marimbaNote(t, m, d, 0.34 * acc); }
+    else boxNote(t + hum() * 2, m + 12, 0.62 * acc);
   }
-  const spb = 60 / MOODS[M.cur].bpm;
-  PATTERN[M.cur](t, M.step, M.bar, spb);
+
+  if (mood === 'sleepy') {
+    if (chordStart) {
+      const d = ch.len * e - 0.2;
+      for (let i = 0; i < ch.notes.length; i++) padNote(t + i * 0.05, K(ch.notes[i]), d, 0.5);
+      padNote(t, K(ch.root), d, 0.5);
+    }
+    return;
+  }
+
+  // bass: two-feel when calm, walking quarters otherwise
+  if (onBeat && b.bass[q]) {
+    if (mood === 'calm') { if (q === 0 || q === 2) bassNote(t, K(b.bass[q]), spb * 1.5, q === 0 ? 0.72 : 0.6); }
+    else bassNote(t + (q ? hum() : 0), K(b.bass[q]), spb * 0.82, q === 0 ? 0.8 : q === 2 ? 0.72 : 0.64);
+  }
+  if (quiet) {
+    if (mood === 'zoomies' && s >= 4) percHit(t, 'snare', 0.3 + (s - 4) * 0.09);    // roll into the last A
+    else if (mood === 'playful' && s === 4) percHit(t, 'rim', 0.4);
+    return;
+  }
+
+  if (mood === 'calm') {
+    if (chordStart) stab(t, ch, ch.len * e * 0.8, 0.24);
+    if (s === 2 || s === 6) percHit(t + hum(), 'brush', 0.34);
+  } else if (mood === 'playful') {
+    if (s === 2 || s === 6) stab(t + hum(), ch, 0.14, s === 2 ? 0.36 : 0.31);        // "oom-CHA"
+    if (s === 0 || s === 4) percHit(t, 'kick', 0.46);
+    if (s === 2 || s === 6) percHit(t + hum(), 'brush', 0.6);
+    if (onBeat) percHit(t + hum(), 'shaker', 0.3);
+    else if (s === 3 || s === 7) percHit(t + hum(), 'shaker', 0.42);                 // ride skip-note
+    if (s === 7 && barIdx % 4 === 3) percHit(t, 'rim', 0.36);
+  } else { // zoomies
+    if (s === 2 || s === 6) stab(t, ch, 0.12, 0.36);
+    else if (s === 3) stab(t, ch, 0.1, 0.24);
+    if (onBeat) percHit(t, 'kick', s === 0 ? 0.75 : 0.62);
+    if (s === 2 || s === 6) percHit(t, 'snare', 0.6);
+    percHit(t + hum(), 'hat', onBeat ? 0.45 : 0.72);
+    if (barIdx % 8 === 7 && (s === 5 || s === 7)) percHit(t, 'snare', 0.4);          // phrase-end fill
+  }
 }
+
+const stepOffset = (s, spb, swing) => ((s >> 1) + ((s & 1) ? swing : 0)) * spb;
 
 function musicTick(h) {
   if (!M.playing) return;
   const now = C.currentTime;
-  if (M.next < now - 0.08) M.next = now + 0.06;              // timers were throttled / tab was hidden: resync
+  if (M.next < now - 0.08) {                                 // timers were throttled / tab was hidden: resync
+    const shift = now + 0.06 - M.next;
+    M.next += shift; M.barT += shift;
+  }
   let guard = 0;
   while (M.next < h && guard++ < 64) {
-    musicStep(M.next);
-    M.next += 60 / MOODS[M.cur].bpm / 4;
-    if (++M.step >= 16) { M.step = 0; M.bar++; }
+    if (M.step === 0) M.cur = M.mood;                        // mood changes land on the bar line
+    const mo = MOODS[M.cur], spb = 60 / mo.bpm;
+    musicStep(M.next, M.bar < 0 ? INTRO : FORM[M.bar], M.step, M.bar, M.cur, spb);
+    if (++M.step >= 8) {
+      M.step = 0; M.barT += 4 * spb; M.next = M.barT;
+      if (++M.bar >= FORM.length) M.bar = 0;
+    } else M.next = M.barT + stepOffset(M.step, spb, mo.swing);
   }
 }
 
@@ -1448,13 +1477,7 @@ function startMusic() {
   if (!C || M.playing) return;
   const t = C.currentTime;
   M.playing = true;
-  M.key = pick([0, 2, 3, 5, 7, 10]);                          // C D Eb F G Bb
-  M.scale = [];
-  for (let m = 60; m <= 96; m++) if ([0, 2, 4, 7, 9].indexOf((m - M.key + 120) % 12) >= 0) M.scale.push(m);
-  M.mel = (M.scale.length / 2) | 0;
-  M.cur = M.mood; M.step = 0; M.bar = 0; M.next = t + 0.12;
-  newMotif(MOTIF_P[M.cur][0], MOTIF_P[M.cur][1]);
-  setChord('I');
+  M.cur = M.mood; M.step = 0; M.bar = -1; M.barT = M.next = t + 0.12;
   musicBus.gain.cancelScheduledValues(t);
   musicBus.gain.setTargetAtTime(MUSIC_LEVEL, t, 0.25);
   musicSend.gain.cancelScheduledValues(t);
@@ -1498,3 +1521,5 @@ export function __pumpForTest(seconds) {
   ambienceTick(h);
 }
 export function __stats() { return { played: stats.played, dropped: stats.dropped, rateLimited: stats.rateLimited, errors: stats.errors, lastError: stats.lastError, voices: C ? activeVoices(C.currentTime) : 0, liveMusic: M.live.size }; }
+// The composed tune, for tests / inspection.
+export function __theme() { return { key: THEME_KEY, moods: MOODS, form: FORM, intro: INTRO, pos: { bar: M.bar, step: M.step, mood: M.cur } }; }

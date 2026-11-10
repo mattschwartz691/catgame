@@ -42,7 +42,7 @@ def mats():
     M['w_study'] = pbr('w_study', 'beige_wall_001', tile=2.5, tint=(0.72, 0.85, 0.74))
     M['w_bath'] = pbr('w_bath', 'long_white_tiles', tile=1.0)
     M['w_util'] = pbr('w_util', 'white_plaster_02', tile=2.5, tint=(0.98, 0.93, 0.82))
-    M['ext'] = pbr('ext_clap_w', 'white_planks_clean', tile=1.6, tint=(0.93, 0.92, 0.88), nonormal=True)
+    M['ext'] = pbr('ext_brick', 'red_brick_03', tile=1.2, nonormal=True)
     M['trim'] = flat('trim_white', hexc(0xF4F1EA), rough=0.45)
     M['ceil'] = flat('ceiling', hexc(0xF2F0EC), rough=0.9)
     M['grass'] = pbr('ext_grass', 'leafy_grass', tile=3.0, nonormal=True)
@@ -535,7 +535,7 @@ def garden():
     bark = flat('ext_bark', hexc(0x5A4030), rough=0.95); fence = flat('ext_fence', hexc(0xF2EFE8), rough=0.7)
     path = pbr('ext_path', 'floor_pattern_02', tile=1.5, nonormal=True)
     # hedge all the way round
-    for (x0, x1, z0, z1) in ((-15, 15, -12.6, -11.6), (-15, -0.9, 11.6, 12.6), (1.7, 15, 11.6, 12.6), (-15.6, -14.6, -12, 12), (14.6, 15.6, -12, 12)):
+    for (x0, x1, z0, z1) in ((-15, 15, -12.6, -11.6), (-15.6, -14.6, -12, 12), (14.6, 15.6, -12, 6)):
         o = box(x0, x1, 0, 1.5, z0, z1, hedge, bevel=0.12, segs=4, collide=False, static=False, name='hedge'); L.EXT.append(o)
         collider(x0, x1, 0, 1.6, z0, z1)
     # flower beds under the sunny windows
@@ -546,18 +546,7 @@ def garden():
             L.blob(x, 0.16 + rng.random() * 0.1, z, 0.2, leaf2 if i % 3 else leaf, squash=0.8, seed=i)
             if i % 4 == 0: L.blob(x + 0.05, 0.36 + rng.random() * 0.12, z, 0.075, flat('ext_fl%06x' % cols[i % 5], hexc(cols[i % 5]), rough=0.6), squash=0.8, jitter=0.05, seed=i)
     # garden path from the front door
-    o = quad([(-0.3, -0.01, 13.25), (1.1, -0.01, 13.25), (1.1, -0.01, 5.6), (-0.3, -0.01, 5.6)], path, name='path', static=False); L.EXT.append(o)
-    # white picket fence beyond the south lawn
-    for i in range(46):
-        x = -11 + i * 0.5
-        if -0.6 < x < 1.4: continue          # the garden gate stands open
-        o = box(x - 0.045, x + 0.045, 0, 0.75, 9.0, 9.04, fence, bevel=0.01, collide=False, static=False, name='picket'); L.EXT.append(o)
-    for (xa, xb) in ((-11.2, -0.55), (1.35, 11.8)):
-        for y in (0.2, 0.55):
-            o = box(xa, xb, y, y + 0.07, 9.04, 9.07, fence, bevel=0.008, collide=False, static=False, name='rail'); L.EXT.append(o)
-        collider(xa, xb, 0, 0.75, 8.99, 9.08)
-    for x in (-0.55, 1.35):
-        o = box(x - 0.07, x + 0.07, 0, 0.95, 8.95, 9.09, fence, bevel=0.015, collide=False, static=False, name='gatepost'); L.EXT.append(o)
+    o = quad([(-0.3, -0.01, 13.25), (1.1, -0.01, 13.25), (1.1, -0.01, 5.6), (-0.3, -0.01, 5.6)], pbr('ext_walk', 'concrete_pavement', tile=2.0, nonormal=True), name='path', static=False); L.EXT.append(o)
 
 def build():
     mats()

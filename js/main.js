@@ -45,12 +45,12 @@ const input = new Input(canvas);
 const game = new Game({ scene, world, props, fx, cat, ui, input, camera });
 
 // the second house is big: fetch it in the background and keep the garden gate shut until it is there
-const gate = world.addBox({ minX: -1.2, maxX: 2.0, minY: 0, maxY: 2.6, minZ: 8.9, maxZ: 9.15, cam: false, fade: null, spot: null });
+const gate = world.addBox({ minX: -16, maxX: 16, minY: 0, maxY: 2.6, minZ: 12.4, maxZ: 12.7, cam: false, fade: null, spot: null });
 let gateTold = 0;
 const moreReady = loadMore(R.r, { half: R.tierName !== 'high' }).then(list => {
   for (const a of list) { world.addArea(a); props.addProps(a.data.props || []); fx.addShafts(a.data.windows || []); game.addArea(a.data); }
   world.boxes.splice(world.boxes.indexOf(gate), 1);
-  if (state === 'play') ui.toast('The garden gate swings open', 'find');
+  if (state === 'play') ui.toast('The coast is clear: off you go', 'find');
 }).catch(e => { console.warn('second house failed to load', e); world.boxes.splice(world.boxes.indexOf(gate), 1); });
 
 // sky dome
@@ -177,7 +177,7 @@ function frame(now) {
 
   // dynamic objects pick up the baked ambient level where they stand
   world.update(cat.pos, dbg.every ? 1 : dt);
-  if (world.boxes.includes(gate) && state === 'play' && cat.pos.z > 8.4 && Math.abs(cat.pos.x - 0.4) < 1.6 && now - gateTold > 9000) { gateTold = now; ui.toast('The gate is stuck… (the neighbourhood is still unpacking)'); }
+  if (world.boxes.includes(gate) && state === 'play' && cat.pos.z > 11.9 && now - gateTold > 9000) { gateTold = now; ui.toast('Not yet… (the neighbourhood is still unpacking)'); }
   ambS = damp(ambS, clamp(world.ambientAt(cat.pos.x, cat.pos.z, cat.pos.y) * 2.2 + 0.25, 0.3, 1.6), 4, dt);
   for (const s of cat.model.shells) s.material.envMapIntensity = ambS;
 

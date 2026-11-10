@@ -61,7 +61,7 @@ def mats():
     M['w_bath'] = pbr('w2_bath', 'square_tiles', tile=0.9, tint=(0.85, 0.95, 1.0))
     M['w_sun'] = pbr('w2_sun', 'white_plaster_02', tile=2.5, tint=(1.0, 0.98, 0.9))
     M['w_garage'] = pbr('w2_garage', 'white_plaster_02', tile=2.5, tint=(0.85, 0.85, 0.85))
-    M['ext'] = pbr('ext_clap', 'white_planks_clean', tile=1.6, tint=(0.62, 0.17, 0.14), nonormal=True)
+    M['ext'] = pbr('ext_clap', 'white_planks_clean', tile=1.6, tint=(0.5, 0.2, 0.17), nonormal=True)
     M['w_up'] = pbr('w2_up', 'white_plaster_02', tile=2.5, tint=(0.95, 0.94, 0.9)); M['w_blue'] = pbr('w2_blue', 'white_plaster_02', tile=2.5, tint=(0.76, 0.83, 0.9)); M['w_green'] = pbr('w2_green', 'white_plaster_02', tile=2.5, tint=(0.82, 0.88, 0.8))
     M['w_base'] = pbr('w2_base', 'white_plaster_02', tile=2.5, tint=(0.86, 0.86, 0.84)); M['carpet'] = pbr('fl_carpet', 'knitted_fleece', tile=0.9, tint=(0.82, 0.8, 0.74), nonormal=True)
     M['carpet2'] = pbr('fl_carpet2', 'knitted_fleece', tile=0.9, tint=(0.62, 0.68, 0.76), nonormal=True)
@@ -132,7 +132,7 @@ def architecture():
         c = box(x0 - 0.2, x1 + 0.2, H, H + 0.1, z0 - 0.2, z1 + 0.2, M['ceil'], bevel=0, collide=False, static=False, name='ceiling'); L.BAKE_ONLY.append(c)
     g = quad([(-30, -0.02, 30), (40, -0.02, 30), (40, -0.02, -30), (-30, -0.02, -30)], flat('bake_ground', hexc(0x6F8F4A), rough=0.9), name='ground', static=False); L.BAKE_ONLY.append(g)
     # the front door stands open
-    doorm = flat('door_dark', hexc(0x1F2A26), rough=0.4)
+    doorm = flat('door_dark', hexc(0x24352E), rough=0.4)
     L.EXT.append(box(7.25, 7.3, 0, D + 0.03, 8.47, 9.38, doorm, bevel=0.01, collide=False, static=False, name='frontdoor'))
 
 def counter(x0, x1, z0, z1, face, cab, top, spot='the kitchen counter', h=0.9, doors=True):
