@@ -156,7 +156,8 @@ export class CatModel {
     for (const s of this.shells) { this.group.remove(s); s.material.dispose(); }
     this.shells = [];
     const map = this.assets.tex[coat.id];
-    this.shared.uTint.value.set(coat.tint); this.shared.uFurLen.value = coat.fur; this.shared.sheen.set(coat.sheen);
+    this.shared.uTint.value.set(coat.tint); this.shared.sheen.set(coat.sheen);
+    this.shared.uFurLen.value = coat.fur * Math.min(1, 0.5 + this.nShells / 16);      // fewer shells: shorter fur, so the layers do not read as dots
     for (let i = 0; i < this.nShells; i++) {
       const h = this.nShells > 1 ? i / (this.nShells - 1) : 0;
       const m = new THREE.SkinnedMesh(this.assets.geo, furMaterial(map, h, this.shared));
