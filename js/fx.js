@@ -184,8 +184,8 @@ export class FX {
     for (const w of d.windows) {
       // outward normal of the wall this window sits in
       let nx = 0, nz = 0;
-      if (w.axis === 'x') nx = w.at < (b[0] + b[1]) / 2 ? -1 : 1; else nz = w.at < (b[2] + b[3]) / 2 ? -1 : 1;
-      if (Math.abs(w.at - (w.axis === 'x' ? (nx < 0 ? b[0] : b[1]) : (nz < 0 ? b[2] : b[3]))) > 0.2) continue;   // inner walls have no sun
+      if (!w.ext) continue;                                   // inner walls have no sun
+      if (w.axis === 'x') nx = w.ext === 'neg' ? -1 : 1; else nz = w.ext === 'neg' ? -1 : 1;
       if (nx * sun.x + nz * sun.z < 0.15) continue;
       const pos = [], aT = [], aE = [], idx = [];
       const corners = [[w.a[0], w.y[0]], [w.a[1], w.y[0]], [w.a[1], w.y[1]], [w.a[0], w.y[1]]];

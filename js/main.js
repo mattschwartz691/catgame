@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Cat, COATS, angDiff, CAT_S } from './cat.js';
 import { loadCatAssets } from './catmodel.js';
-import { World, loadHouse } from './world.js';
+import { World, loadWorld } from './world.js';
 import { Props } from './props.js';
 import { Input } from './input.js';
 import { Renderer, pickTier, TIERS } from './render.js';
@@ -28,7 +28,7 @@ scene.environmentIntensity = 0.5;
 ui.loading(0.05, 'Fluffing the cat…');
 const [catAssets, houseAssets] = await Promise.all([
   loadCatAssets(),
-  loadHouse(R.r, 'assets/house/', (u, l, t) => { if (t) ui.loading(0.1 + 0.7 * l / t, 'Tidying the house (not for long)…'); }),
+  loadWorld(R.r, (l, t) => { ui.loading(0.1 + 0.75 * Math.min(1, l / t), 'Tidying the houses (not for long)…'); }),
 ]);
 ui.loading(0.9, 'Hiding the treats…');
 
@@ -45,6 +45,7 @@ const input = new Input(canvas);
 const game = new Game({ scene, world, props, fx, cat, ui, input, camera });
 
 // sky dome
+let sky;
 {
   const g = new THREE.SphereGeometry(90, 24, 12);
   const m = new THREE.ShaderMaterial({
@@ -60,9 +61,9 @@ const game = new Game({ scene, world, props, fx, cat, ui, input, camera });
         c += vec3(1.0, 0.85, 0.6) * (pow(s, 40.0) * 0.5 + pow(s, 900.0) * 6.0);
         gl_FragColor = vec4(c * 1.6, 1.0); }`,
   });
-  const sky = new THREE.Mesh(g, m); sky.renderOrder = -10; scene.add(sky);
+  sky = new THREE.Mesh(g, m); sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
 }
-scene.fog = new THREE.Fog(0xdfe8f0, 40, 110);
+scene.fog = new THREE.Fog(0xdfe8f0, 45, 115);
 
 R.setup(scene, camera);
 R.onTier = (t) => { cat.model.setShells(t.shells); world.sun.shadow.mapSize.set(t.shadow, t.shadow); if (world.sun.shadow.map) { world.sun.shadow.map.dispose(); world.sun.shadow.map = null; } };
@@ -166,6 +167,7 @@ function frame(now) {
   }
 
   // dynamic objects pick up the baked ambient level where they stand
+  world.update(cat.pos, dt);
   ambS = damp(ambS, clamp(world.ambientAt(cat.pos.x, cat.pos.z) * 2.2 + 0.25, 0.3, 1.6), 4, dt);
   for (const s of cat.model.shells) s.material.envMapIntensity = ambS;
 
@@ -179,7 +181,7 @@ function frame(now) {
   if (Math.abs(camera.fov - (baseFov + fovKick)) > 0.05) { camera.fov = baseFov + fovKick; camera.updateProjectionMatrix(); }
   tgt.copy(camT);
   // if furniture is in the way, look over it from higher up before moving in closer
-  const wantD = camDist * (1 + sleepy * 0.12);
+  const wantD = camDist * (1 + sleepy * 0.12) * (1 + world.outW * 0.55);       // pull back for a wider view out of doors
   let bestLift = 0, bestClear = -1;
   for (let k = 0; k < 6; k++) {
     const lift = k * 0.2, pt = Math.min(1.42, camPitch + sleepy * 0.25 + lift), c0 = Math.cos(pt);
@@ -202,6 +204,7 @@ function frame(now) {
   if (shake > 0.001) { camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake; shake *= Math.exp(-9 * dt); }
   if (camera.position.y < 0.12) camera.position.y = 0.12;
   camera.lookAt(tgt);
+  sky.position.copy(camera.position);
   world.camFade(tgt, camera.position, dt);
 
   game.frame(dt, t, state === 'play');

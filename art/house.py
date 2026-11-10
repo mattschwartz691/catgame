@@ -4,14 +4,17 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import house_lib as L
 from house_lib import box, cyl, lathe, quad, put, prop, pbr, flat, hexc, collider, join, B, S, log
-import house_rooms as R
-
+import importlib
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else ['preview']
+SITE = ([a[5:] for a in ARGS if a.startswith('site=')] or ['home'])[0]
+ARGS = [a for a in ARGS if not a.startswith('site=')]
+R = importlib.import_module({'home': 'house_rooms', 'colonial': 'house2_rooms'}[SITE])
+SFX = '' if SITE == 'home' else '_' + SITE
 MODE = ARGS[0]
 LMRES = int(ARGS[1]) if MODE in ('bake', 'export') and len(ARGS) > 1 else 1024
 SAMPLES = int(ARGS[2]) if MODE in ('bake', 'export') and len(ARGS) > 2 else 64
 OUT = '/mnt/data/Games/tools/out'
-ASSETS = os.path.join(HERE, '..', 'assets', 'house')
+ASSETS = os.path.join(HERE, '..', 'assets', 'house' if SITE == 'home' else 'house2')
 os.makedirs(ASSETS, exist_ok=True)
 
 L.reset()
@@ -58,8 +61,10 @@ if MODE == 'preview':
         try: put(p['asset'], p['p'][0], p['p'][2], rot=p.get('rot', 0), y=p['p'][1], scale=p.get('scale', 1), collide='none', static=False)
         except Exception as e: print('prop preview fail', p['asset'], e)
     for v in views:
-        if v == 'top': render('house_top', (0, 30, 0.01), (0, 0, 0), ortho=17.5, res=(1600, 1120))
-        elif v in R.VIEWS: render('house_' + v, *R.VIEWS[v])
+        if v == 'top':
+            b = R.BOUNDS; cx, cz = (b[0] + b[1]) / 2, (b[2] + b[3]) / 2
+            render('house%s_top' % SFX, (cx, 40, cz + 0.01), (cx, 0, cz), ortho=max(b[1] - b[0], (b[3] - b[2]) * 1.45) + 1.5, res=(1600, 1120))
+        elif v in R.VIEWS: render('house%s_%s' % (SFX, v), *R.VIEWS[v])
     log('preview done'); sys.exit(0)
 
 # ================================================================== bake + export
@@ -73,10 +78,10 @@ exp = [join(objs, 'fade_' + k) for k, objs in fades.items()]
 exp.append(join(rest, 'static'))
 L.STATIC[:] = exp
 log('merged into %d objects' % len(exp))
-lm = L.bake_lightmap(LMRES, SAMPLES, sun, os.path.join(OUT, 'lightmap.npy')) if MODE == 'bake' else np.load(os.path.join(OUT, 'lightmap.npy'))
+lm = L.bake_lightmap(LMRES, SAMPLES, sun, os.path.join(OUT, 'lightmap%s.npy' % SFX)) if MODE == 'bake' else np.load(os.path.join(OUT, 'lightmap%s.npy' % SFX))
 b = R.BOUNDS
 probes = L.bake_probes(b[0], b[1], b[2], b[3], 0.22, 0.25, max(64, SAMPLES), sun)
-np.save(os.path.join(OUT, 'probes.npy'), probes)
+np.save(os.path.join(OUT, 'probes%s.npy' % SFX), probes)
 log('lightmap stats: mean %.3f  p50 %.3f  p99 %.3f  max %.3f' % (lm.mean(), np.percentile(lm, 50), np.percentile(lm, 99), lm.max()))
 log('probe stats: mean %.3f max %.3f' % (probes.mean(), probes.max()))
 
@@ -85,12 +90,15 @@ LMAX = float(min(6.0, max(1.0, np.percentile(lm, 99.7))))
 enc = np.clip(lm / LMAX, 0, 1) ** (1 / 2.2)
 img = bpy.data.images.new('LMOUT', LMRES, LMRES, alpha=False)
 img.pixels.foreach_set(np.concatenate([enc, np.ones((LMRES, LMRES, 1), dtype=np.float32)], -1).ravel())
-img.filepath_raw = os.path.join(OUT, 'lightmap.png'); img.file_format = 'PNG'; img.save()
+img.filepath_raw = os.path.join(OUT, 'lightmap%s.png' % SFX); img.file_format = 'PNG'; img.save()
 pr = probes[::-1].mean(-1)       # row 0 = north (z0)
+OX, OZ = getattr(R, 'ORIGIN', (0.0, 0.0))
+L.offset_data(S, OX, OZ)
 data = dict(S)
-data.update(bounds=R.BOUNDS, sun=dict(dir=[float(v) for v in SUN_DIR], intensity=SUN_STRENGTH, color=list(SUN_COLOR)),
+SPAWN = dict(R.SPAWN); SPAWN['x'] += OX; SPAWN['z'] += OZ
+data.update(bounds=[R.BOUNDS[0] + OX, R.BOUNDS[1] + OX, R.BOUNDS[2] + OZ, R.BOUNDS[3] + OZ], site=SITE, roofs=[[r[0] + OX, r[1] + OX, r[2] + OZ, r[3] + OZ] for r in getattr(R, 'ROOFS', [R.BOUNDS])], sun=dict(dir=[float(v) for v in SUN_DIR], intensity=SUN_STRENGTH, color=list(SUN_COLOR)),
             lightmap=dict(max=LMAX, res=LMRES), probes=dict(cell=0.25, nx=int(pr.shape[1]), nz=int(pr.shape[0]), v=[round(float(v), 3) for v in pr.ravel()]),
-            spawn=R.SPAWN, wallH=R.H)
+            spawn=SPAWN, wallH=R.H)
 json.dump(data, open(os.path.join(ASSETS, 'house.json'), 'w'))
 # ---- texture budgets (phones have little texture memory): colour maps only, detail maps where they earn their keep
 def tex_node(m, bs, sock):
@@ -152,6 +160,9 @@ if loose:
     bpy.context.view_layer.objects.active = loose[0]
     if len(loose) > 1: bpy.ops.object.join()
     ext = bpy.context.view_layer.objects.active; ext.name = 'exterior'; exp.append(ext)
+if OX or OZ:
+    from mathutils import Matrix
+    for o in exp: o.data.transform(Matrix.Translation(B(OX, 0, OZ)))
 bpy.ops.object.select_all(action='DESELECT')
 for o in exp: o.select_set(True)
 bpy.ops.export_scene.gltf(filepath=os.path.join(ASSETS, 'house.glb'), export_format='GLB', use_selection=True,

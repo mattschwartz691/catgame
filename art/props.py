@@ -4,7 +4,10 @@ import bpy, sys, os, json
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import house_lib as L
 ASSETS = os.path.join(HERE, '..', 'assets', 'house')
-data = json.load(open(os.path.join(ASSETS, 'house.json')))
+data = dict(props=[])
+for d in ('house', 'house2'):
+    f = os.path.join(HERE, '..', 'assets', d, 'house.json')
+    if os.path.exists(f): data['props'] += json.load(open(f))['props']
 bpy.ops.wm.read_factory_settings(use_empty=True)
 ids = sorted(set(p['asset'] for p in data['props'] if p['asset'] in L.CATALOG))
 objs = []

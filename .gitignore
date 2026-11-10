@@ -2,3 +2,4 @@ dev/*.png
 *.tmp
 .DS_Store
 images/
+art/__pycache__/

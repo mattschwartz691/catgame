@@ -2,8 +2,9 @@
 
 A 3D cat sandbox for the phone browser. The humans are out; you are the cat.
 
-Pick one of three cats, then roam a seven-room house: knock things off shelves, shred the sofa, hunt the fly,
-ride the robot vacuum, play the piano, nap in a sunbeam, and work through the Cat To-Do List.
+Pick one of five cats, then roam a seven-room house: knock things off shelves, shred the sofa, hunt the fly,
+ride the robot vacuum, play the piano, nap in a sunbeam, and work through the Cat To-Do List. The front door is
+open: walk down the street to a second, bigger house (a colonial with a staircase, sunroom, garage and deck).
 
 ## Playing
 
@@ -32,9 +33,8 @@ adapts to frame rate.
 - `js/` — the game (three.js, plain ES modules). The cat is animated entirely procedurally: inverse-kinematic legs,
   gait cycles, a spring-lagged tail, shell fur.
 - `art/` — the offline asset pipeline (Blender + Python). `cat_build.py` sculpts the cat from signed-distance
-  shapes and paints its coats; `house.py` / `house_rooms.py` build the house, bake its global illumination with
-  Cycles and export it; `build_house.sh` runs the bake and compresses textures and meshes.
-- `assets/` — the built cat, house and props.
+  shapes and paints its coats; `house.py` builds a house from a room module (`house_rooms.py` for the first house, `house2_rooms.py` for the colonial), bakes its global illumination with Cycles and exports it (`build_house.sh bake|export 2048 200 home|colonial`); `street.py` / `build_street.sh` make the street, gardens and the houses' roofs. The build scripts also compress textures and meshes.
+- `assets/` — the built cat, houses, street and props.
 - `vendor/` — three.js and the loaders it needs.
 
 ## Credits

@@ -449,7 +449,7 @@ def wall(axis, at, a0, a1, mat_neg, mat_pos, H, T, openings=(), key=None, ext=No
                     else: bars.append(box(s0, s1, yy0, yy1, at - 0.02, at + 0.02, trim, bevel=0.003, collide=False, static=False))
                 ob = join(bars, 'glazing'); STATIC.append(ob)
                 if key: ob['fade'] = key
-                S['windows'].append(dict(axis=axis, at=at, a=[b0, b1], y=[y0, y1], fade=key))
+                S['windows'].append(dict(axis=axis, at=at, a=[b0, b1], y=[y0, y1], fade=key, ext=ext))
 
 
 def blob(x, y, z, r, mat, squash=1.0, jitter=0.18, seed=0, name='blob'):
@@ -464,3 +464,32 @@ def blob(x, y, z, r, mat, squash=1.0, jitter=0.18, seed=0, name='blob'):
     ob = _finish(bm, name, mat, static=False, smooth=True)
     EXT.append(ob)
     return ob
+
+
+def offset_data(S, ox, oz):
+    """Move every recorded game coordinate by (ox, oz): lets a house be authored around its own origin."""
+    if not ox and not oz: return
+    def p3(p): p[0] = round(p[0] + ox, 4); p[2] = round(p[2] + oz, 4)
+    def p2(p): p[0] = round(p[0] + ox, 4); p[1] = round(p[1] + oz, 4)
+    def b4(b): b[0] += ox; b[1] += ox; b[2] += oz; b[3] += oz
+    def plane(d):
+        if d['axis'] == 'x': d['at'] += ox; d['a'] = [d['a'][0] + oz, d['a'][1] + oz]
+        else: d['at'] += oz; d['a'] = [d['a'][0] + ox, d['a'][1] + ox]
+    for c in S['colliders']: b = c['b']; b[0] += ox; b[1] += ox; b[4] += oz; b[5] += oz
+    for d in S['props']: p3(d['p'])
+    for d in S['scratch']:
+        if d['type'] == 'floor': b4(d['b'])
+        elif d['type'] == 'post': p2(d['p'])
+        else: plane(d)
+    for d in S['zones']:
+        if 'b' in d: b4(d['b'])
+        if 'p' in d: p3(d['p'])
+    for d in S['lights']: p3(d['p'])
+    for d in S['windows']: plane(d)
+    for d in S['items']:
+        for k in ('p', 'basin', 'screen'):
+            if k in d: p3(d[k])
+        if 'stand' in d: p2(d['stand'])
+        if 'b' in d: b4(d['b'])
+    for t in S['treats']: p3(t)
+    for n in S['nav']: p2(n)

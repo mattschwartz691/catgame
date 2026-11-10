@@ -39,6 +39,9 @@ const TASKS = [
   ['Explorer', 'box', 'If I fits, I sits (the cardboard box)', 1],
   ['Explorer', 'tub', 'Sit in the bathtub', 1],
   ['Explorer', 'birds', 'Chatter at the birds from a windowsill', 1],
+  ['Explorer', 'visit', 'Visit the big house down the street', 1],
+  ['Explorer', 'stairs', 'Climb to the top of the stairs', 1],
+  ['Explorer', 'car', 'Sit on the roof of a car', 1],
   ['Comfort', 'naps', 'Nap in 3 different cosy spots', 3],
   ['Comfort', 'sun', 'Snooze in a sunbeam', 1],
   ['Comfort', 'knead', 'Make biscuits on something soft', 14],
@@ -60,7 +63,7 @@ export class Game {
     this.opts = { music: true, sound: true };
     this.fade = 0; this.time = 0; this.tipStage = 0; this.moved = 0;
     this.dirty = null; this.carry = null; this.zoomT = 0; this.zoomCool = 0; this.rideT = 0; this.sillT = 0; this.napT = 0;
-    this.strokes = {}; this.shakeCam = () => {}; this.onceSet = new Set(); this.digT = 0;
+    this.strokes = {}; this.shakeCam = () => {}; this.onceSet = new Set(); this.digT = 0; this.lastSite = this.world.site;
     TASKS.find(t => t.id === 'alltreats').target = d.treats.length;
     this.load();
     this.buildTreats();
@@ -657,10 +660,19 @@ export class Game {
       if (g && g.spot && g.spot !== 'windowsill') {
         if (this.discover(g.spot, `Found ${g.spot}`) || true) { if (pos.y >= 1.4) { if (!this.highs) this.highs = new Set(); if (!this.highs.has(g.spot)) { this.highs.add(g.spot); this.task('high', this.highs.size, true); this.save(); } } }
         if (g.spot === 'the bathtub' && cat.sitW > 0.7) this.task('tub');
+        if (g.spot === 'the top of the stairs') this.task('stairs');
+        if (g.spot.includes('car') && g.spot.endsWith('roof')) this.task('car');
         if (g.spot === 'the cardboard box' && (cat.sitW > 0.7 || cat.lieW > 0.5)) this.task('box');
       }
       if (g && g.spot === 'windowsill' && cat.idle > 1.5) { this.sillT += dt; if (this.sillT > 1.2) { this.sillT = -8; cat.meow('chatter'); this.task('birds'); this.discover('sill', 'Birds! So many birds.'); } } else if (this.sillT > 0) this.sillT = 0; else if (this.sillT < 0) this.sillT += dt;
-      for (const z of this.data.zones) if (z.kind === 'under' && pos.y < 0.05 && pos.x > z.b[0] && pos.x < z.b[1] && pos.z > z.b[2] && pos.z < z.b[3]) { this.task('under'); this.discover('under', 'Found the secret spot under the bed', 40); }
+      for (const z of this.data.zones) if (z.kind === 'under' && pos.y < 0.05 && pos.x > z.b[0] && pos.x < z.b[1] && pos.z > z.b[2] && pos.z < z.b[3]) { this.task('under'); this.discover(z.name.includes('bed') ? 'under' : z.name, 'Found ' + z.name, 40); }
+    }
+    // out and about
+    const site = this.world.site;
+    if (site !== this.lastSite) {
+      this.lastSite = site;
+      if (site === null) this.discover('outdoors', 'The great outdoors!', 30);
+      if (site === 'colonial') { this.task('visit'); this.discover('colonial', 'The big house down the street', 50); }
     }
     // napping
     if (cat.action && cat.action.kind === 'nap' && cat.sleepW > 0.85) {

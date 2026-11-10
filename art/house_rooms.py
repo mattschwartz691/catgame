@@ -64,7 +64,7 @@ def architecture():
     floor('study', 1.4, 8, -5.5, -2.0, M['planks'])
     # ---- outer walls
     W('z', 5.5, -8, -0.6, M['w_living'], M['ext'], ext='pos', key='s_living', openings=[(-7.0, -5.0, 0.5, 2.15, 'window'), (-3.9, -1.9, 0.5, 2.15, 'window')])
-    W('z', 5.5, -0.6, 1.4, M['w_hall'], M['ext'], ext='pos', key='s_hall', openings=[(0.05, 0.75, 1.1, 1.9, 'window')])
+    W('z', 5.5, -0.6, 1.4, M['w_hall'], M['ext'], ext='pos', key='s_hall', openings=[(-0.05, 0.85, 0, DOOR + 0.05, 'door')])
     W('z', 5.5, 1.4, 8, M['w_bed'], M['ext'], ext='pos', key='s_bed', openings=[(3.3, 5.3, 0.6, 2.15, 'window')])
     W('z', -5.5, -8, -0.6, M['ext'], M['w_kitchen'], ext='neg', key='n_kitchen', openings=[(-5.3, -3.5, 1.1, 2.1, 'window')])
     W('z', -5.5, -0.6, 1.4, M['ext'], M['w_hall'], ext='neg', key='n_hall', openings=[(-0.05, 0.85, 1.0, 2.1, 'window')])
@@ -88,7 +88,8 @@ def architecture():
     W('x', 4.6, -2.0, 0.9, M['w_bath'], M['w_util'], key='bath_util')
     # ceiling exists only for the light bake; the game looks in from above
     c = box(-8.2, 8.2, H, H + 0.1, -5.7, 5.7, M['ceil'], bevel=0, collide=False, static=False, name='ceiling'); L.BAKE_ONLY.append(c)
-    g = quad([(-40, -0.02, 40), (40, -0.02, 40), (40, -0.02, -40), (-40, -0.02, -40)], M['grass'], name='ground', static=False); L.EXT.append(g)
+    g = quad([(-40, -0.02, 40), (40, -0.02, 40), (40, -0.02, -40), (-40, -0.02, -40)], M['grass'], name='ground', static=False); L.BAKE_ONLY.append(g)     # the street scene supplies the real lawn
+    L.EXT.append(box(-0.1, -0.05, 0, DOOR + 0.03, 5.57, 6.45, flat('door_green', hexc(0x2F5D50), rough=0.4), bevel=0.01, collide=False, static=False, name='frontdoor'))
 
 # ------------------------------------------------------------------ procedural bits
 import bpy, numpy as np
@@ -532,8 +533,9 @@ def garden():
     bark = flat('ext_bark', hexc(0x5A4030), rough=0.95); fence = flat('ext_fence', hexc(0xF2EFE8), rough=0.7)
     path = pbr('ext_path', 'floor_pattern_02', tile=1.5, nonormal=True)
     # hedge all the way round
-    for (x0, x1, z0, z1) in ((-15, 15, -12.6, -11.6), (-15, 15, 11.6, 12.6), (-15.6, -14.6, -12, 12), (14.6, 15.6, -12, 12)):
+    for (x0, x1, z0, z1) in ((-15, 15, -12.6, -11.6), (-15, -0.9, 11.6, 12.6), (1.7, 15, 11.6, 12.6), (-15.6, -14.6, -12, 12), (14.6, 15.6, -12, 12)):
         o = box(x0, x1, 0, 1.5, z0, z1, hedge, bevel=0.18, segs=3, collide=False, static=False, name='hedge'); L.EXT.append(o)
+        collider(x0, x1, 0, 1.6, z0, z1)
         n = int(max(x1 - x0, z1 - z0) / 1.1)
         for i in range(n):
             t = (i + 0.5) / n
@@ -541,6 +543,7 @@ def garden():
     # trees
     for (x, z, h) in ((-11.5, 8.5, 3.4), (-12.5, -2.0, 4.0), (-4.0, 10.0, 3.0), (6.0, 10.2, 3.8), (12.0, 3.0, 4.2), (11.5, -7.0, 3.6), (0.5, -10.2, 3.9), (-9.0, -9.5, 3.2)):
         o = cyl(x, z, 0, h * 0.62, 0.17, bark, r_top=0.11, seg=10, collide=False, static=False, name='trunk'); L.EXT.append(o)
+        collider(x - 0.16, x + 0.16, 0, 2.6, z - 0.16, z + 0.16)
         for k in range(5):
             a = rng.random() * 6.28; rr = 0.5 * rng.random()
             L.blob(x + math.cos(a) * rr * 1.3, h * (0.72 + 0.2 * rng.random()), z + math.sin(a) * rr * 1.3, 0.85 + 0.45 * rng.random(), leaf if k % 2 else leaf2, squash=0.85, seed=k)
@@ -552,13 +555,18 @@ def garden():
             L.blob(x, 0.16 + rng.random() * 0.1, z, 0.2, leaf2 if i % 3 else leaf, squash=0.8, seed=i)
             if i % 2 == 0: L.blob(x + 0.05, 0.36 + rng.random() * 0.12, z, 0.075, flat('ext_fl%06x' % cols[i % 5], hexc(cols[i % 5]), rough=0.6), squash=0.8, jitter=0.05, seed=i)
     # garden path from the front door
-    o = quad([(-0.3, -0.01, 12), (1.1, -0.01, 12), (1.1, -0.01, 5.6), (-0.3, -0.01, 5.6)], path, name='path', static=False); L.EXT.append(o)
+    o = quad([(-0.3, -0.01, 13.25), (1.1, -0.01, 13.25), (1.1, -0.01, 5.6), (-0.3, -0.01, 5.6)], path, name='path', static=False); L.EXT.append(o)
     # white picket fence beyond the south lawn
     for i in range(46):
         x = -11 + i * 0.5
+        if -0.6 < x < 1.4: continue          # the garden gate stands open
         o = box(x - 0.045, x + 0.045, 0, 0.75, 9.0, 9.04, fence, bevel=0.01, collide=False, static=False, name='picket'); L.EXT.append(o)
-    for y in (0.2, 0.55):
-        o = box(-11.2, 11.8, y, y + 0.07, 9.04, 9.07, fence, bevel=0.008, collide=False, static=False, name='rail'); L.EXT.append(o)
+    for (xa, xb) in ((-11.2, -0.55), (1.35, 11.8)):
+        for y in (0.2, 0.55):
+            o = box(xa, xb, y, y + 0.07, 9.04, 9.07, fence, bevel=0.008, collide=False, static=False, name='rail'); L.EXT.append(o)
+        collider(xa, xb, 0, 0.75, 8.99, 9.08)
+    for x in (-0.55, 1.35):
+        o = box(x - 0.07, x + 0.07, 0, 0.95, 8.95, 9.09, fence, bevel=0.015, collide=False, static=False, name='gatepost'); L.EXT.append(o)
 
 def build():
     mats()
