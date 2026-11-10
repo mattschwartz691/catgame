@@ -105,6 +105,22 @@ export class FX {
     this.ribbons = [];
     this.marks = 0;
     this.buildShafts();
+    this.buildBirds();
+  }
+
+  // a few garden birds flitting about outside, for the cat to chatter at
+  buildBirds() {
+    const b = this.world.data.bounds;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0.09, -0.16, 0, -0.05, 0, 0, -0.03, 0, 0, 0.09, 0, 0, -0.03, 0.16, 0, -0.05], 3));
+    geo.computeVertexNormals();
+    this.birds = [];
+    for (let i = 0; i < 7; i++) {
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: [0x2b2b30, 0x5a4030, 0x8a2b20, 0x30506a][i % 4], side: THREE.DoubleSide }));
+      this.scene.add(m);
+      const south = i % 2 === 0;
+      this.birds.push({ m, cx: south ? rnd(b[0], b[1]) : b[0] - rnd(3, 6), cz: south ? b[3] + rnd(2.5, 5.5) : rnd(-2, 5), r: rnd(1.5, 4), h: rnd(1.2, 3.2), sp: rnd(0.5, 1.1) * (i % 2 ? 1 : -1), ph: rnd(0, 6.28) });
+    }
   }
 
   glyph(ch, col) { const k = ch + col; return this.glyphs[k] || (this.glyphs[k] = glyphTex(ch, col)); }
@@ -112,7 +128,7 @@ export class FX {
     const q = this.sprites[this.si = (this.si + 1) % this.sprites.length];
     q.s.material.map = this.glyph(ch, col); q.s.material.needsUpdate = true; q.s.visible = true;
     q.s.position.copy(pos); q.vel.set(rnd(-0.12, 0.12), o.vy ?? 0.35, rnd(-0.12, 0.12));
-    q.life = q.max = o.life ?? 1.4; q.size = o.size ?? 0.13;
+    q.life = q.max = o.life ?? 1.4; q.size = o.size ?? 0.13; q.s.scale.setScalar(q.size);
   }
 
   burst(p, n, col, o = {}) {
@@ -123,6 +139,7 @@ export class FX {
       const sp = o.speed ?? 2.2;
       q.vel.set(rnd(-1, 1) * sp, rnd(o.up0 ?? 0.3, o.up ?? 1.4) * sp, rnd(-1, 1) * sp);
       q.life = q.max = rnd(0.4, 0.9) * (o.life ?? 1); q.grav = o.grav ?? 1; q.size = (o.size ?? 0.025) * rnd(0.6, 1.3);
+      q.m.scale.setScalar(q.size);
     }
   }
 
@@ -226,6 +243,13 @@ export class FX {
       if (q.life <= 0) { q.s.visible = false; continue; }
       q.s.position.addScaledVector(q.vel, dt);
       const k = q.life / q.max; q.s.material.opacity = Math.min(1, k * 2.5); q.s.scale.setScalar(q.size * (1.2 - 0.4 * k));
+    }
+    this.birdT = (this.birdT || 0) + dt;
+    for (const b of this.birds) {
+      const a = b.ph + this.birdT * b.sp, x = b.cx + Math.cos(a) * b.r, z = b.cz + Math.sin(a * 0.7) * b.r * 0.6, y = b.h + Math.sin(a * 1.9) * 0.5;
+      b.m.rotation.set(0, Math.atan2(x - b.m.position.x, z - b.m.position.z), Math.sin(this.birdT * 14 + b.ph) * 0.5);
+      b.m.position.set(x, y, z);
+      b.m.scale.set(1, 1 + Math.abs(Math.sin(this.birdT * 14 + b.ph)) * 0.6, 1);
     }
     for (const s of this.spills) if (s.grow < 1) { s.grow = Math.min(1, s.grow + dt * 2.5); s.m.scale.setScalar(s.r * (1 - (1 - s.grow) ** 3)); }
     // blob shadow follows the ground under the cat

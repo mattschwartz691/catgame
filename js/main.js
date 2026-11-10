@@ -178,23 +178,24 @@ function frame(now) {
   if (Math.abs(camera.fov - (baseFov + fovKick)) > 0.05) { camera.fov = baseFov + fovKick; camera.updateProjectionMatrix(); }
   tgt.copy(camT);
   // if furniture is in the way, look over it from higher up before moving in closer
-  const wantD = camDist * (1 - sleepy * 0.2);
-  let bestLift = 0, bestClear = 0;
-  for (let k = 0; k < 5; k++) {
-    const lift = k * 0.22, pt = Math.min(1.45, camPitch + sleepy * 0.25 + lift), c0 = Math.cos(pt);
+  const wantD = camDist * (1 + sleepy * 0.12);
+  let bestLift = 0, bestClear = -1;
+  for (let k = 0; k < 6; k++) {
+    const lift = k * 0.2, pt = Math.min(1.42, camPitch + sleepy * 0.25 + lift), c0 = Math.cos(pt);
     dir.set(Math.sin(camYaw) * c0, Math.sin(pt), Math.cos(camYaw) * c0);
     _cw.copy(tgt).addScaledVector(dir, wantD);
     const c = world.viewBlock(tgt, _cw);
-    if (c > bestClear + 0.05) { bestClear = c; bestLift = lift; }
-    if (c > 0.92) break;
+    if (c > bestClear + 0.08) { bestClear = c; bestLift = lift; }
+    if (c > 0.9) break;
   }
-  liftS = damp(liftS, bestLift, bestLift > liftS ? 9 : 2.5, dt);
-  const pitch = Math.min(1.45, camPitch + sleepy * 0.25 + liftS);
+  liftS = damp(liftS, bestLift, bestLift > liftS ? 8 : 2, dt);
+  const pitch = Math.min(1.42, camPitch + sleepy * 0.25 + liftS);
   const cp = Math.cos(pitch);
   dir.set(Math.sin(camYaw) * cp, Math.sin(pitch), Math.cos(camYaw) * cp);
   _cw.copy(tgt).addScaledVector(dir, wantD);
-  const clearD = Math.max(0.45 + liftS * 0.9, wantD * world.viewBlock(tgt, _cw) - 0.12);
-  curDist = clearD < curDist ? damp(curDist, clearD, 14, dt) : damp(curDist, Math.min(wantD, clearD), 2.5, dt);
+  // never crowd the cat: past a point it is better to let the camera pass through furniture than to fill the screen with fur
+  const clearD = Math.max(Math.min(wantD, 1.25), wantD * world.viewBlock(tgt, _cw) - 0.12);
+  curDist = clearD < curDist ? damp(curDist, clearD, 10, dt) : damp(curDist, Math.min(wantD, clearD), 2.5, dt);
   if (dbg.every) { liftS = bestLift; curDist = Math.min(wantD, clearD); }
   camera.position.copy(tgt).addScaledVector(dir, curDist);
   if (shake > 0.001) { camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake; shake *= Math.exp(-9 * dt); }

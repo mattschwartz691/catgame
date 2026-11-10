@@ -423,7 +423,7 @@ export class Game {
       switch (type) {
         case 'jump': sfx.jump(); break;
         case 'land': sfx.land({ impact: e }); if (e > 7) { fx.burst(_v.copy(cat.pos).setY(cat.pos.y + 0.03), 6, 0xe9e2d6, { speed: 0.9, up: 0.8, grav: 0.25, size: 0.03, life: 0.7 }); this.shakeCam(0.012); } break;
-        case 'meow': sfx.meow({ kind: e || 'meow' }); if (this.playing && (!e || e === 'meow')) this.task('meow'); break;
+        case 'meow': sfx.meow({ kind: e || pick(['meow', 'meow', 'meow', 'chirp', 'kitten']) }); if (this.playing && (!e || e === 'meow')) this.task('meow'); break;
         case 'step': this.onStep(e); break;
         case 'paw': { const n = props.hit(e) + this.pawItems(e); if (n) sfx.bap(); else sfx.swipe(); } break;
         case 'pounce': sfx.pounce(); break;

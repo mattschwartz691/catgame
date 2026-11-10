@@ -63,6 +63,7 @@ export class World {
           m.userData.lm = true;
           m.lightMap = lm; m.lightMapIntensity = lmI;
           m.envMapIntensity = 0.3;
+          if (m.name.startsWith('fl_')) { m.roughnessMap = null; m.metalnessMap = null; m.roughness = m.name === 'fl_parquet' ? 0.5 : 0.62; m.metalness = 0; }
           if (m.emissiveMap || (m.emissive && (m.emissive.r + m.emissive.g + m.emissive.b) > 0)) m.emissiveIntensity = Math.min(m.emissiveIntensity, 3);
         }
         if (key) o.material = fadeMat(key, m);
