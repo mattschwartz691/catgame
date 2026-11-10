@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cat About the House</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2b211c">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="loader">
+  <div class="box">
+    <div class="logo">Cat About<br>the House</div>
+    <div class="bar"><i id="loadBar"></i></div>
+    <div id="loadMsg">Waking the cat…</div>
+  </div>
+</div>
+
+<div id="hud" class="hidden">
+  <div id="topLeft">
+    <div id="chaos" class="pill"><svg viewBox="0 0 24 24"><path d="M4 9 2 3l5 3a9 9 0 0 1 10 0l5-3-2 6a8 8 0 1 1-16 0z"/></svg><b id="scoreNum">0</b><span id="combo"></span></div>
+    <div id="treats" class="pill"><svg viewBox="0 0 24 24"><path d="M2 12c3-5 9-6 13-3l5-4v14l-5-4c-4 3-10 2-13-3z"/></svg><b id="treatNum">0</b><span id="treatTotal">/0</span></div>
+  </div>
+  <div id="topRight">
+    <button id="tasksBtn" class="round" aria-label="To-do list"><svg viewBox="0 0 24 24"><path d="M5 4h14v17H5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" fill="none"/></svg><i id="tasksBadge"></i></button>
+    <button id="pauseBtn" class="round" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h14" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg></button>
+  </div>
+  <div id="comboBar"><i></i></div>
+  <div id="toasts"></div>
+  <div id="banner"></div>
+  <div id="tip"></div>
+  <div id="stick"><div id="stickKnob"></div></div>
+  <div id="buttons">
+    <button id="btnMeow" class="act small">MEOW</button>
+    <button id="btnAct" class="act ctx"><span id="actLabel">NAP</span></button>
+    <button id="btnPaw" class="act">PAW</button>
+    <button id="btnJump" class="act big">JUMP</button>
+  </div>
+</div>
+
+<div id="menu" class="hidden">
+  <div class="panel">
+    <h1>Cat About the House</h1>
+    <p class="sub">The humans are out. Pick your cat.</p>
+    <div id="cards"></div>
+    <button id="play">Play</button>
+    <div class="row">
+      <button id="optMusic" class="chip">Music: on</button>
+      <button id="optSound" class="chip">Sound: on</button>
+      <button id="optQuality" class="chip">Graphics: auto</button>
+    </div>
+    <p class="keys">Drag left to move, right to look. Hold PAW to wind up a pounce.<br>Keyboard: WASD · Space jump · E paw · F action · M meow · T to-do</p>
+    <button id="optReset" class="link">Reset progress</button>
+  </div>
+</div>
+
+<div id="tasks" class="hidden">
+  <div class="sheet">
+    <div class="head"><h2>Cat To-Do List</h2><button id="tasksClose" class="round dark" aria-label="Close">✕</button></div>
+    <div id="taskProgress"></div>
+    <div id="taskList"></div>
+  </div>
+</div>
+
+<div id="err"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
