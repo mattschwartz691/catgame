@@ -104,7 +104,7 @@ data = dict(S)
 SPAWN = dict(R.SPAWN); SPAWN['x'] += OX; SPAWN['z'] += OZ
 data.update(bounds=[R.BOUNDS[0] + OX, R.BOUNDS[1] + OX, R.BOUNDS[2] + OZ, R.BOUNDS[3] + OZ], site=SITE, roofs=[[r[0] + OX, r[1] + OX, r[2] + OZ, r[3] + OZ] for r in getattr(R, 'ROOFS', [R.BOUNDS])], sun=dict(dir=[float(v) for v in SUN_DIR], intensity=SUN_STRENGTH, color=list(SUN_COLOR)),
             lightmap=dict(max=LMAX, res=LMRES), probes=dict(cell=0.25, nx=int(pr.shape[1]), nz=int(pr.shape[0]), v=[round(float(v), 3) for v in pr.ravel()]),
-            spawn=SPAWN, wallH=R.H, levels=levels, fadeY=fadeY, pits=[[r[0] + OX, r[1] + OX, r[2] + OZ, r[3] + OZ] for r in getattr(R, 'PITS', [])], pitY=getattr(R, 'PIT_Y', 0))
+            spawn=SPAWN, wallH=R.H, levels=levels, fadeY=fadeY, well=([R.HOLE[0] + OX, R.HOLE[1] + OX, R.HOLE[2] + OZ, R.HOLE[3] + OZ] if hasattr(R, 'HOLE') else None), pits=[[r[0] + OX, r[1] + OX, r[2] + OZ, r[3] + OZ] for r in getattr(R, 'PITS', [])], pitY=getattr(R, 'PIT_Y', 0))
 json.dump(data, open(os.path.join(ASSETS, 'house.json'), 'w'))
 # ---- texture budgets (phones have little texture memory): colour maps only, detail maps where they earn their keep
 def tex_node(m, bs, sock):

@@ -494,7 +494,12 @@ def merged(objs, name):
     for o in objs:
         if len(o.data.uv_layers) == 0: o.data.uv_layers.new(name='UVMap')
     return join(objs, name)
-exp = [merged(main, 'street')] + [merged(objs, 'shell_' + k) for k, objs in SHELL.items()]
+tiles = {}
+for o in main:
+    c = sum((Vector(v) for v in o.bound_box), Vector()) / 8
+    big = max(o.dimensions) > 60                      # ground, road, curbs
+    tiles.setdefault('ground' if big else '%d_%d' % (math.floor(c.x / 22), math.floor(-c.y / 22)), []).append(o)
+exp = [merged(objs, 'street_' + k) for k, objs in tiles.items()] + [merged(objs, 'shell_' + k) for k, objs in SHELL.items()]
 for m in bpy.data.materials:
     if not m.use_nodes: continue
     bs = m.node_tree.nodes.get('Principled BSDF')

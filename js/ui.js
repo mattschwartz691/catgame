@@ -51,7 +51,7 @@ export class UI {
     this.state = s;
     $('menu').classList.toggle('hidden', s !== 'menu');
     $('hud').classList.toggle('hidden', s !== 'play');
-    if (s !== 'play') this.showTasks(false);
+    if (s !== 'play') { this.showTasks(false); this.setMini(null); }
   }
 
   toast(msg, cls = '') {
@@ -87,6 +87,12 @@ export class UI {
     this.actLabel = label; this.actPulse = pulse;
     b.classList.toggle('none', !label); b.classList.toggle('pulse', !!pulse);
     if (label) $('actLabel').textContent = label;
+  }
+  setMini(title, info = '', frac = 1) {
+    const el = $('mini'); el.classList.toggle('hidden', !title); if (!title) return;
+    if (title !== this._mt) { this._mt = title; $('miniTitle').textContent = title; }
+    if (info !== this._mi) { this._mi = info; $('miniInfo').textContent = info; }
+    $('miniBar').style.width = Math.round(Math.max(0, Math.min(1, frac)) * 100) + '%';
   }
   setBadge(n) { const b = $('tasksBadge'); b.style.display = n > 0 ? 'block' : 'none'; b.textContent = n; }
 

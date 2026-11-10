@@ -242,7 +242,7 @@ export class Cat {
     if (assist && vel.y < 5.2 && vel.y > -7) { vel.y = 5.2; this.jumpCut = true; }   // scramble up a ledge
     if (!this.grounded) {
       pos.y += vel.y * dt;
-      { const top = world.ceilY ? world.ceilY(prevY) : world.H; if (top && pos.y + CAT_H > top) { pos.y = top - CAT_H; if (vel.y > 0) vel.y = 0; } }     // there is a ceiling, even if we cannot see it
+      { const top = world.ceilY ? world.ceilY(prevY, pos.x, pos.z) : world.H; if (top && pos.y + CAT_H > top) { pos.y = top - CAT_H; if (vel.y > 0) vel.y = 0; } }     // there is a ceiling, even if we cannot see it
       if (vel.y > 0) {
         const c = world.ceilingAt(pos.x, pos.z, prevY + CAT_H);
         if (pos.y + CAT_H > c) { pos.y = c - CAT_H; vel.y = 0; }

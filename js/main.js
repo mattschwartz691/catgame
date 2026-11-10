@@ -47,11 +47,15 @@ const game = new Game({ scene, world, props, fx, cat, ui, input, camera });
 // the second house is big: fetch it in the background and keep the garden gate shut until it is there
 const gate = world.addBox({ minX: -16, maxX: 16, minY: 0, maxY: 2.6, minZ: 12.4, maxZ: 12.7, cam: false, fade: null, spot: null });
 let gateTold = 0;
-const moreReady = loadMore(R.r, { half: R.tierName !== 'high' }).then(list => {
+let moreStarted = false, moreDone;
+const moreReady = new Promise(res => { moreDone = res; });
+const startMore = () => { if (moreStarted) return; moreStarted = true; loadMore(R.r, { half: R.tierName !== 'high' }).then(list => {
   for (const a of list) { world.addArea(a); props.addProps(a.data.props || []); fx.addShafts(a.data.windows || []); game.addArea(a.data); }
   world.boxes.splice(world.boxes.indexOf(gate), 1);
   if (state === 'play') ui.toast('The coast is clear: off you go', 'find');
-}).catch(e => { console.warn('second house failed to load', e); world.boxes.splice(world.boxes.indexOf(gate), 1); });
+  moreDone(true);
+}).catch(e => { console.warn('second house failed to load', e); world.boxes.splice(world.boxes.indexOf(gate), 1); moreDone(false); }); };
+if (new URLSearchParams(location.search).has('all')) startMore();
 
 // sky dome
 let sky;
@@ -130,7 +134,7 @@ game.shakeCam = (a) => { shake = Math.max(shake, a); };
 // ------------------------------------------------------------------ loop
 const dir = new THREE.Vector3(), tgt = new THREE.Vector3(), _cw = new THREE.Vector3();
 const ctl = { mx: 0, mz: 0, jump: false, jumpPressed: false, pawPressed: false, pawHeld: false, meowPressed: false };
-let last = performance.now(), ambS = 0.5, liftS = 0;
+let last = performance.now(), ambS = 0.5, liftS = 0, frameNo = 0;
 const dbg = { manual: false, freezeCam: false, every: +(new URLSearchParams(location.search).get('every') || 0) };
 
 function step(dt) {
@@ -177,6 +181,7 @@ function frame(now) {
 
   // dynamic objects pick up the baked ambient level where they stand
   world.update(cat.pos, dbg.every ? 1 : dt);
+  if (!moreStarted && state === 'play' && (!world.site || cat.pos.z > 3.5 && Math.abs(cat.pos.x - 0.4) < 1.2)) startMore();      // heading for the front door: fetch the neighbours
   if (world.boxes.includes(gate) && state === 'play' && cat.pos.z > 11.9 && now - gateTold > 9000) { gateTold = now; ui.toast('Not yet… (the neighbourhood is still unpacking)'); }
   ambS = damp(ambS, clamp(world.ambientAt(cat.pos.x, cat.pos.z, cat.pos.y) * 2.2 + 0.25, 0.3, 1.6), 4, dt);
   for (const s of cat.model.shells) s.material.envMapIntensity = ambS;
@@ -217,6 +222,8 @@ function frame(now) {
   sky.position.copy(camera.position);
   world.camFade(tgt, camera.position, dbg.every ? 1 : dt);
 
+  // the sun does not move: on lighter tiers refresh its shadow map every other frame
+  frameNo++; world.sun.shadow.autoUpdate = false; if (R.tierName === 'high' || frameNo % 2 === 0) world.sun.shadow.needsUpdate = true;
   game.frame(dt, t, state === 'play');
   if (!dbg.every) R.adapt(dt);
   R.render(t, game.fade);

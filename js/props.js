@@ -229,9 +229,14 @@ export class Props {
   update(dt, cat) {
     const bd = this.world.bounds, boxes = this.world.boxes;
     const cx = cat.pos.x + Math.sin(cat.yaw) * 0.08, cz = cat.pos.z + Math.cos(cat.yaw) * 0.08, cy = cat.pos.y + 0.17;
+    const cut = this.world.cut, lo = this.world.floorY(cat.pos.y) - 0.6;
     for (const p of this.list) {
       if (p.dead || p.held) continue;
       const dx = p.pos.x - cx, dy = p.pos.y - cy, dz = p.pos.z - cz, rr = 0.2 + p.r;
+      // only what is near the cat and on its storey is drawn (hundreds of ornaments two houses away cost a lot)
+      const near = dx * dx + dz * dz < (this.world.site ? 17 * 17 : 9 * 9) && p.pos.y < cut + 0.2 && p.pos.y > lo;
+      if (near !== p.g.visible) p.g.visible = near;
+      if (!near && p.asleep) continue;
       const d2 = dx * dx + dy * dy + dz * dz;
       if (d2 < rr * rr && d2 > 1e-6) {          // the cat barges through
         const hd = Math.hypot(dx, dz) || 1e-3, nx = dx / hd, nz = dz / hd;

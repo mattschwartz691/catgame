@@ -7,6 +7,10 @@ ride the robot vacuum, play the piano, nap in a sunbeam, and work through the Ca
 open: walk down the street to a second, bigger house: a red colonial with four storeys to explore, from the billiard
 room in the basement to the attic. It loads in the background after the game starts.
 
+Five mini-games are scattered about, each on a glowing ring: Laser Chase (living room of the first house), Stalk the
+Sparrow (the lawn across the street), and in the red house The Floor Is Lava (basement), Vole Patrol (back garden)
+and Attic Bells (attic). Stand on a ring and press the orange button.
+
 ## Playing
 
 - **Touch:** drag the left side of the screen to move, drag the right side to look.

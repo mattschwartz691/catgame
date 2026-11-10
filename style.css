@@ -128,3 +128,10 @@ svg { width: 18px; height: 18px; fill: currentColor; }
   #stick { width: 112px; height: 112px; }
   #buttons { transform: scale(.88); transform-origin: bottom right; }
 }
+
+/* ---------- mini-game status ---------- */
+#mini { position: absolute; left: 50%; transform: translateX(-50%); top: calc(58px + var(--sat, 0px)); min-width: 200px; max-width: 86vw; padding: 7px 14px 9px; border-radius: 16px; background: rgba(40, 28, 20, .72); color: #fff; text-align: center; pointer-events: none; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+#mini b { display: block; font-size: 13px; font-weight: 900; letter-spacing: .3px; color: #ffcf7a; text-transform: uppercase; }
+#mini span { display: block; font-size: 14px; font-weight: 800; margin: 1px 0 5px; }
+#mini .bar { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .22); overflow: hidden; }
+#mini .bar i { display: block; height: 100%; width: 100%; background: #ffb347; border-radius: 3px; transition: width .15s linear; }

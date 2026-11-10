@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { sfx, loops, music, setMusicOn, setSfxOn } from './audio.js';
 import { CAT_S } from './cat.js';
+import { Minigames } from './minigames.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -44,6 +45,11 @@ const TASKS = [
   ['Explorer', 'car', 'Sit on the roof of a car', 1],
   ['Explorer', 'attic', 'Find the attic of the big house', 1],
   ['Mischief', 'billiards', 'Pot 3 billiard balls the cat way', 3],
+  ['Games', 'mgLaser', 'Laser Chase: score 12 (living room)', 12],
+  ['Games', 'mgBird', 'Stalk the Sparrow: catch all 3 (across the street)', 3],
+  ['Games', 'mgLava', 'The Floor Is Lava: every fish (basement of the red house)', 9],
+  ['Games', 'mgVoles', 'Vole Patrol: bop 15 (behind the red house)', 15],
+  ['Games', 'mgBells', 'Attic Bells: remember 6 in a row', 6],
   ['Comfort', 'naps', 'Nap in 3 different cosy spots', 3],
   ['Comfort', 'sun', 'Snooze in a sunbeam', 1],
   ['Comfort', 'knead', 'Make biscuits on something soft', 14],
@@ -52,7 +58,7 @@ const TASKS = [
   ['Comfort', 'litter', 'Visit the litter box', 1],
   ['Comfort', 'meow', 'Meow 10 times. Nobody is home.', 10],
 ].map(([g, id, text, target]) => ({ g, id, text, target }));
-const REWARDS = [[6, 'collar', 'a smart red collar'], [14, 'bow', 'a dapper bow tie'], [24, 'crown', 'a tiny crown'], [TASKS.length, 'gold', 'the golden bell']];
+const REWARDS = [[15, 'crown', 'a tiny crown'], [TASKS.length, 'gold', 'the grand crown']];
 
 const _v = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
 
@@ -71,6 +77,7 @@ export class Game {
     this.buildItems();
     this.buildActors();
     this.buildAccessories();
+    this.mini = new Minigames(this);
     this.bind();
     this.syncUI(false);
     setMusicOn(false); setSfxOn(this.opts.sound);
@@ -235,7 +242,7 @@ export class Game {
     if (!this.trails) { this.trails = new Map(); this.sockStash = 0; }
   }
   // a house that finished loading after play began
-  addArea(d) { this.buildTreats(); this.buildItems(d.items || []); this.syncUI(false); }
+  addArea(d) { this.buildTreats(); this.buildItems(d.items || []); this.syncUI(false); this.mini.addStations(d.site || 'colonial'); }
   drawTV(it, t) {
     const g = it.g; const gr = g.createLinearGradient(0, 0, 0, 96); gr.addColorStop(0, '#7cc4f2'); gr.addColorStop(0.7, '#d9f0fb'); gr.addColorStop(0.71, '#7fbf6a'); gr.addColorStop(1, '#5fa04e');
     g.fillStyle = gr; g.fillRect(0, 0, 128, 96);
@@ -424,9 +431,8 @@ export class Game {
   }
   applyAccessories() {
     const n = this.done.size, a = this.accParts;
-    a.collar.visible = n >= REWARDS[0][0]; a.bell.visible = a.collar.visible && n < REWARDS[1][0] || n >= REWARDS[3][0];
-    a.bow.visible = n >= REWARDS[1][0] && n < REWARDS[3][0]; a.crown.visible = n >= REWARDS[2][0];
-    if (n >= REWARDS[3][0]) a.bell.scale.setScalar(1.5);
+    a.collar.visible = a.bell.visible = a.bow.visible = false;          // no collars: these cats answer to nobody
+    a.crown.visible = n >= REWARDS[0][0]; a.crown.scale.setScalar(n >= REWARDS[1][0] ? 1.35 : 1);
   }
 
   // ------------------------------------------------------------ events
@@ -438,10 +444,10 @@ export class Game {
         case 'land': sfx.land({ impact: e }); if (e > 7) { fx.burst(_v.copy(cat.pos).setY(cat.pos.y + 0.03), 6, 0xe9e2d6, { speed: 0.9, up: 0.8, grav: 0.25, size: 0.03, life: 0.7 }); this.shakeCam(0.012); } break;
         case 'meow': sfx.meow({ kind: e || pick(['meow', 'meow', 'meow', 'chirp', 'kitten']) }); if (this.playing && (!e || e === 'meow')) this.task('meow'); break;
         case 'step': this.onStep(e); break;
-        case 'paw': { const n = props.hit(e) + this.pawItems(e); if (n) sfx.bap(); else sfx.swipe(); } break;
+        case 'paw': { const n = props.hit(e) + this.pawItems(e) + this.mini.onPaw(e, false); if (n) sfx.bap(); else sfx.swipe(); } break;
         case 'pounce': sfx.pounce(); this.pounceCaught = false; break;
         case 'pounceLand': {
-          props.hit({ ...e, side: 0 }, 0.42, 1.35);
+          props.hit({ ...e, side: 0 }, 0.42, 1.35); this.mini.onPaw(e, true);
           const f = this.fly; if (f.alive && f.pos.distanceTo(e.point) < 0.6) this.catchFly();
           const prey = props.nearest(e.point, 0.5, p => p.d.prey);
           if (prey && !this.pounceCaught) { this.pounceCaught = true; sfx.catch(); this.task('mouse'); this.chaos(30, 'Pounced!'); fx.burst(prey.pos, 5, 0xffffff, { speed: 1, size: 0.012 }); }
@@ -493,7 +499,7 @@ export class Game {
   onStep(e) {
     if (!this.playing) return;
     const cat = this.cat;
-    sfx.step({ surface: this.surfaceAt(e.x, e.y, e.z), vol: clamp(0.5 + e.speed * 0.2, 0.4, 1.2) });
+    if (e.speed > 2.2) sfx.step({ surface: this.surfaceAt(e.x, e.y, e.z), vol: clamp(0.06 + e.speed * 0.03, 0.08, 0.2) });      // cats walk silently; only a gallop patters
     const sp = this.fx.spillAt(e.x, e.y, e.z);
     if (sp) this.dirty = { col: sp.col, n: sp.kind === 'water' ? 14 : 30, kind: sp.kind };
     else if (this.dirty && this.dirty.n > 0) {
@@ -557,6 +563,7 @@ export class Game {
     const cat = this.cat, pos = cat.pos;
     if (!cat.grounded || cat.action) return cat.action ? { label: 'GET UP', kind: 'stop' } : null;
     if (this.carry) return { label: 'DROP', kind: 'drop', hot: true };
+    const mg = this.mini.context(); if (mg) return mg;
     _v.set(pos.x + Math.sin(cat.yaw) * 0.3, pos.y + 0.12, pos.z + Math.cos(cat.yaw) * 0.3);
     const grab = this.props.nearest(_v, 0.45, p => p.d.carry && p.asleep !== false || (p.d.carry && p.speed < 0.6));
     if (grab) return { label: 'GRAB', kind: 'grab', prop: grab, hot: true };
@@ -596,6 +603,7 @@ export class Game {
   act() {
     const c = this.ctx, cat = this.cat; if (!c) return;
     switch (c.kind) {
+      case 'mini': this.mini.act(c); break;
       case 'stop': cat.stopAction(); break;
       case 'scratch': cat.startAction('scratch', { ...c.sc, max: 6 }); break;
       case 'eat': case 'drink':
@@ -631,7 +639,7 @@ export class Game {
     if (this.tipStage === 0) this.ui.tip('Drag the left side to move  ·  drag the right side to look', 0);
     this.renderTasks();
   }
-  onLeavePlay() { this.playing = false; this.save(); music.setMood('calm'); }
+  onLeavePlay() { this.playing = false; if (this.mini.active) this.mini.finish(false, 'Paused'); this.save(); music.setMood('calm'); }
   preStep(dt) {
     const cat = this.cat, g = cat.ground;
     if (cat.grounded && g && g.mover) { cat.pos.x += g.dx; cat.pos.z += g.dz; }
@@ -705,6 +713,7 @@ export class Game {
     const cat = this.cat;
     this.updateTreats(dt, t);
     if (!playing) { loops.purr.set(0); return; }
+    this.mini.frame(dt, t);
     this.ctx = this.context();
     this.ui.setAct(this.ctx ? this.ctx.label : null, !!(this.ctx && this.ctx.hot));
     this.ui.setCombo(this.mult, this.comboT / 4.5);

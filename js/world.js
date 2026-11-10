@@ -59,13 +59,14 @@ export class World {
     this.movers = [];                // moving platforms (robot vacuum)
     this.fades = new Map();          // key -> { mats: [], op, hit }
     this.sunDir = new THREE.Vector3(...d.sun.dir).normalize();
-    this.areas = []; this.pits = [];
+    this.areas = []; this.pits = []; this.wells = [];
     this.clip = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e6);      // hides the storeys above the cat in a multi-storey house
     this.cut = 1e6;
     this.site = d.site || 'home';    // which house the cat is inside (null = outdoors)
     this.outW = 0;                   // 0 indoors .. 1 outdoors, eased
     this.street = assets.street;
     this.dress(assets.street, null, 0, null); this.scene.add(assets.street);
+    this.streetCasters = []; assets.street.traverse(o => { if (o.isMesh && o.castShadow && !o.name.startsWith('shell_') && !(o.parent && o.parent.name.startsWith('shell_'))) this.streetCasters.push(o); });
     this.glassMat = new THREE.MeshPhysicalMaterial({ color: 0xcfe6f2, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.16, envMapIntensity: 1.6, depthWrite: false });
     this.roofMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, side: THREE.DoubleSide });
     for (const a of assets.areas) this.addArea(a, true);
@@ -75,11 +76,15 @@ export class World {
   addBoxes(list) {
     for (const c of list) this.boxes.push({
       minX: c.b[0], maxX: c.b[1], minY: c.b[2], maxY: c.b[3], minZ: c.b[4], maxZ: c.b[5],
-      cam: !!c.cam, fade: c.fade || null, spot: c.spot || null, step: !!c.step, slab: !!c.slab,
+      cam: !!c.cam, fade: c.fade || null, spot: c.spot || null, step: !!c.step, slab: !!c.slab, wall: !!(c.cam && c.fade),
     });
   }
-  floorY(y) { return Math.floor((y + 0.75) / STOREY) * STOREY; }
-  ceilY(y) { return this.floorY(y) + this.H; }
+  floorY(y) { return Math.floor((y + 0.35) / STOREY) * STOREY; }
+  // Ceiling over a point: one storey's worth of headroom, except in a stairwell.
+  ceilY(y, x, z) {
+    if (x !== undefined) for (const h of this.wells) if (x > h[0] && x < h[1] && z > h[2] && z < h[3]) return 1e6;
+    return this.floorY(y) + this.H;
+  }
   baseY(x, z) { for (const p of this.pits) if (x > p[0] && x < p[1] && z > p[2] && z < p[3]) return p[4]; return 0; }
 
   // ------------------------------------------------------------ static scene + materials
@@ -127,6 +132,7 @@ export class World {
     this.areas.push(area);
     if (!first) { this.addBoxes(d.colliders); for (const k of AREA_KEYS) this.data[k].push(...(d[k] || [])); }
     for (const p of d.pits || []) this.pits.push([p[0], p[1], p[2], p[3], d.pitY]);
+    if (d.well) this.wells.push(d.well);
     this.dress(a.scene, a.lightmap, d.lightmap.max * Math.PI * 0.82, area); this.scene.add(a.scene);
     // roofs and upper storeys as seen from outside; lifted off while the cat is indoors
     const sh = this.street.getObjectByName('shell_' + area.site);
@@ -205,6 +211,7 @@ export class World {
     const ck = site + ':' + cut;
     if (ck !== this.cutKey) {
       this.cutKey = ck;
+      for (const o of this.streetCasters) o.castShadow = !site;
       for (const a of this.areas) for (const o of a.meshes) o.visible = o.userData.lv < cut - 1;
     }
     // a house far down the street does not need drawing
@@ -241,7 +248,7 @@ export class World {
         else if (m === n) { nz = -1; pos.z = b.minZ - r; } else { nz = 1; pos.z = b.maxZ + r; }
       }
       const vn = vel.x * nx + vel.z * nz;
-      if (airborne && !b.step && b.maxY - pos.y < 0.34 && b.maxY + h <= this.ceilY(pos.y) && (vn < -0.25 || wx * nx + wz * nz < -0.3)) assist = 1;   // only onto things there is room to stand on
+      if (airborne && !b.step && b.maxY - pos.y < 0.34 && b.maxY + h <= this.ceilY(pos.y) && !b.wall && (vn < -0.25 || wx * nx + wz * nz < -0.3)) assist = 1;   // only onto things there is room to stand on
       if (vn < 0) { vel.x -= vn * nx; vel.z -= vn * nz; }
     }
     const bd = this.bounds;
@@ -253,7 +260,7 @@ export class World {
     if (y > maxY) y = -1e3;
     const m = 0.06;
     for (const b of this.boxes) {
-      if (b.maxY > maxY || b.maxY <= y) continue;
+      if (b.maxY > maxY || b.maxY <= y || b.wall) continue;          // nobody stands on top of a wall
       if (x < b.minX - m || x > b.maxX + m || z < b.minZ - m || z > b.maxZ + m) continue;
       y = b.maxY; box = b;
     }

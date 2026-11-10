@@ -30,8 +30,8 @@ const GradeShader = {
 
 export const TIERS = {
   high: { post: true, bloom: true, msaa: 4, pr: 2, shadow: 4096, shells: 16 },
-  medium: { post: true, bloom: true, msaa: 4, pr: 1.5, shadow: 2048, shells: 10 },
-  low: { post: false, bloom: false, msaa: 0, pr: 1.25, shadow: 2048, shells: 7 },
+  medium: { post: true, bloom: true, msaa: 2, pr: 1.3, shadow: 2048, shells: 8 },
+  low: { post: false, bloom: false, msaa: 0, pr: 1.2, shadow: 1024, shells: 6 },
   potato: { post: false, bloom: false, msaa: 0, pr: 1, shadow: 1024, shells: 4 },
 };
 const ORDER = ['potato', 'low', 'medium', 'high'];
@@ -110,7 +110,7 @@ export class Renderer {
     if (this.warm < 6 || document.hidden || this.locked) return;          // ignore shader-compile and loading hitches
     this.frameMs += (dt * 1000 - this.frameMs) * 0.05;
     if (this.frameMs > 24) { this.slow += dt; this.fast = 0; } else if (this.frameMs < 14) { this.fast += dt; this.slow = 0; } else { this.slow = Math.max(0, this.slow - dt); this.fast = 0; }
-    if (this.slow > 2.5) {
+    if (this.slow > 1.5) {
       this.slow = 0;
       if (this.scale > 0.72) { this.scale -= 0.14; this.resize(); }
       else { const i = ORDER.indexOf(this.tierName); if (i > 0) this.setTier(ORDER[i - 1]); }
