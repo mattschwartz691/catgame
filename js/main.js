@@ -99,7 +99,7 @@ function resize() {
   const w = window.innerWidth, h = window.innerHeight, portrait = h > w;
   camera.aspect = w / h;
   camera.fov = (portrait ? 62 : 48);
-  camDist = state === 'menu' ? (portrait ? 1.9 : 1.55) : (portrait ? 2.3 : 2.0);
+  camDist = state === 'menu' ? (portrait ? 1.45 : 1.2) : (portrait ? 2.2 : 1.9);
   if (state === 'menu') {
     if (h <= 480) camera.setViewOffset(w, h, w * 0.22, 0, w, h);
     else camera.setViewOffset(w, h, 0, h * (portrait ? 0.2 : 0.22), w, h);
@@ -188,9 +188,9 @@ function frame(now) {
 
   // ---- camera
   const sleepy = cat.sleepW;
-  if (dbg.every) camT.set(cat.pos.x, cat.pos.y + 0.36, cat.pos.z);
+  if (dbg.every) camT.set(cat.pos.x, cat.pos.y + 0.28, cat.pos.z);
   camT.x = damp(camT.x, cat.pos.x, 12, dt); camT.z = damp(camT.z, cat.pos.z, 12, dt);
-  camT.y = damp(camT.y, cat.pos.y + (state === 'menu' ? 0.3 : 0.36), 7, dt);
+  camT.y = damp(camT.y, cat.pos.y + (state === 'menu' ? 0.23 : 0.28), 7, dt);
   fovKick = damp(fovKick, clamp((hs - 3.2) * 3, 0, 9) + (cat.pouncing ? 4 : 0), 5, dt);
   const baseFov = window.innerHeight > window.innerWidth ? 62 : 48;
   if (Math.abs(camera.fov - (baseFov + fovKick)) > 0.05) { camera.fov = baseFov + fovKick; camera.updateProjectionMatrix(); }

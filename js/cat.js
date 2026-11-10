@@ -5,9 +5,9 @@ import * as THREE from 'three';
 import { CatModel, COATS } from './catmodel.js';
 export { COATS };
 
-export const CAT_S = 1.25;      // visual scale of the cat
-export const CAT_R = 0.19;      // collision radius (world)
-export const CAT_H = 0.3;       // collision height (world)
+export const CAT_S = 0.94;      // visual scale of the cat
+export const CAT_R = 0.145;      // collision radius (world)
+export const CAT_H = 0.23;      // collision height (world)
 const S = CAT_S;
 const G = 24, JUMP_V = 8.1, WALK = 1.0, RUN = 3.0, STEP = 0.06;
 const L1 = 0.12, L2 = 0.13;

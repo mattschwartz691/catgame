@@ -266,6 +266,6 @@ export class FX {
     const g = this.world.groundAt(cat.pos.x, cat.pos.z, cat.pos.y + 0.05);
     const h = cat.pos.y - g.y;
     this.shadow.position.set(cat.pos.x + Math.sin(cat.yaw) * 0.02, g.y + 0.022, cat.pos.z + Math.cos(cat.yaw) * 0.02);
-    this.shadow.scale.setScalar(0.62 + h * 0.35); this.shadow.material.opacity = clamp(0.42 - h * 0.22, 0.08, 0.42);
+    this.shadow.scale.setScalar(0.47 + h * 0.27); this.shadow.material.opacity = clamp(0.42 - h * 0.22, 0.08, 0.42);
   }
 }
