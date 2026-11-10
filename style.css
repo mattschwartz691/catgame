@@ -77,7 +77,9 @@ svg { width: 18px; height: 18px; fill: currentColor; }
   box-shadow: 0 14px 44px rgba(20, 10, 5, .4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 #menu h1 { margin: 0; font-size: 27px; font-weight: 900; color: var(--ink); letter-spacing: -.4px; }
 #menu .sub { margin: 2px 0 10px; color: var(--soft); font-weight: 700; font-size: 14px; }
-#cards { display: flex; gap: 10px; justify-content: center; }
+#cards { display: flex; gap: 8px; justify-content: center; }
+#cards .card { flex: 1 1 0; min-width: 0; }
+@media (max-width: 500px) { #cards { flex-wrap: wrap; } #cards .card { flex: 0 1 calc((100% - 16px) / 3); } }
 .card { flex: 1; border: 3px solid transparent; border-radius: 18px; background: #fff; padding: 10px 4px 8px; color: var(--ink); pointer-events: auto; transition: transform .15s, border-color .15s, box-shadow .15s; }
 .card.sel { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 8px 16px rgba(255,150,60,.3); }
 .card .swatch { width: 54px; height: 46px; margin: 0 auto 6px; position: relative; }

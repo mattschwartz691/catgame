@@ -285,7 +285,102 @@ def coat_miso(Pq, W, parts, n, m):
     col = mix(col, rgb(0x4A3430), m['pad'])
     return col
 
-COATS = {'mango': coat_mango, 'domino': coat_domino, 'miso': coat_miso}
+# ---- coats painted from photos of the user's own cats (images/)
+def head_coords(Pq):
+    Ph = cat_def.HEAD_PIVOT + (Pq - cat_def.HEAD_PIVOT) / cat_def.HEAD_S     # un-scaled head space, as in cat_def
+    return np.abs(Ph[:, 0]), Ph[:, 1], Ph[:, 2], Ph
+
+def tabby(Pq, n, m, base, light, dark, seed, body_s=.8, head_s=.8, leg_s=.8):
+    """Ticked mackerel tabby: agouti speckle, broken body stripes, leg bars, ringed tail, forehead M."""
+    x, y, z = Pq[:, 0], Pq[:, 1], Pq[:, 2]; ax = np.abs(x)
+    hx, hy, hz, Ph = head_coords(Pq)
+    nz = fbm(Pq, 9.0, 4, seed); nz2 = fbm(Pq, 30.0, 3, seed + 6); brk = fbm(Pq, 15.0, 3, seed + 21)
+    tick = fbm(Pq, 170.0, 2, seed + 13); tick2 = fbm(Pq, 70.0, 2, seed + 17)
+    col = np.tile(base, (len(Pq), 1))
+    col = mix(col, light, sstep(.35, -.35, n[:, 1]) * .55 + (nz - .5) * .25)
+    col = mix(col, dark, m['top'] * m['torso'] * .3)
+    col = col * (.74 + .34 * tick + .2 * tick2)[:, None]
+    ph = (z + .25 * (.34 - y) + (nz - .5) * .09) / .043
+    s = sstep(.58, .8, np.sin(ph * 2 * np.pi) * .5 + .5 + (nz2 - .5) * .55) * sstep(.34, .52, brk + .1)
+    body = np.clip(m['torso'] * 1.3 - m['legd'] * .6, 0, 1) * (1 - m['under']) * sstep(.24, .16, z) * sstep(-.27, -.2, z)
+    col = mix(col, dark, s * body * body_s)
+    col = mix(col, dark, (1 - sstep(.008, .028, ax)) * m['top'] * m['torso'] * sstep(.2, .1, z) * .8)
+    lb = sstep(.5, .78, np.sin((y + (nz - .5) * .03) / .038 * 2 * np.pi) * .5 + .5)
+    col = mix(col, dark, lb * m['legd'] * sstep(.22, .17, y) * sstep(.05, .08, y) * sstep(.25, .5, brk + .15) * leg_s)
+    tr = sstep(.42, .7, np.sin(m['tailt'] * 2 * np.pi * 5.2 + 1.0) * .5 + .5)
+    col = mix(col, dark, tr * m['tail'] * .92)
+    col = mix(col, dark, sstep(.8, .88, m['tailt']) * m['tail'])
+    # head: forehead lines running back over the crown, cheek streaks, a line back from each eye
+    hd = np.clip(m['head'], 0, 1) * (1 - m['ear'])
+    fh = hd * sstep(.412, .43, hy) * sstep(.17, .24, hz)
+    ms = sstep(.6, .84, np.sin((hx + (nz - .5) * .012) / .0175 * 2 * np.pi + 1.25) * .5 + .5 + (nz2 - .5) * .3) * (1 - sstep(.058, .072, hx))
+    col = mix(col, dark, ms * fh * head_s)
+    ck = hd * sstep(.05, .07, hx) * sstep(.405, .385, hy) * sstep(.335, .30, hz)
+    cs = sstep(.52, .8, np.sin((hy - hz * .55) / .021 * 2 * np.pi) * .5 + .5 + (nz2 - .5) * .25)
+    col = mix(col, dark, cs * ck * head_s * .75)
+    Pa = np.stack([hx, hy, hz], -1)
+    de, _ = sd_roundcone(Pa, V(.068, .402, .318), V(.1, .388, .25), .0, .0)
+    col = mix(col, dark, (1 - sstep(.003, .008, de)) * hd * head_s)
+    col = mix(col, dark, np.clip(m['ear'] - m['earin'], 0, 1) * sstep(.5, .56, hy) * .6)       # dark ear tips
+    return col
+
+def coat_moons(Pq, W, parts, n, m):
+    """Moons: brown mackerel tabby, pale muzzle, brick nose, black-tipped ringed tail."""
+    x, y, z = Pq[:, 0], Pq[:, 1], Pq[:, 2]
+    hx, hy, hz, Ph = head_coords(Pq)
+    col = tabby(Pq, n, m, rgb(0x6F5F4B), rgb(0x907E65), rgb(0x221A15), 31, body_s=.5, leg_s=.6)
+    tan = rgb(0xC4AD8A); pale = rgb(0xDCCBB0)
+    belly = m['under'] * m['torso']
+    col = mix(col, tan, np.clip(belly, 0, 1) * .75)
+    bib = (1 - sstep(.0, .03, parts['bib'])) * sstep(.1, .5, n[:, 2]) * sstep(.33, .28, y)
+    col = mix(col, tan, bib * .45)
+    col = mix(col, tan, sstep(.006, .016, m['eyed'] - cat_def.EYE_R) * sstep(.03, .016, m['eyed'] - cat_def.EYE_R) * .55)   # pale spectacles
+    col = mix(col, pale, m['muzzle'] * .9)
+    chin = np.clip(m['head'], 0, 1) * sstep(.362, .345, hy) * sstep(.30, .34, hz) * sstep(.05, .03, hx)
+    col = mix(col, pale, chin * .9)
+    dn = norm(Ph - V(0, .385, .375))
+    col = mix(col, rgb(0xC6946A), (1 - sstep(.012, .034, dn)) * sstep(.37, .378, hy) * .6)      # warm nose bridge
+    col = mix(col, rgb(0xD9A9A0), m['earin'] * .85)
+    col = mix(col, rgb(0x17110E), m['eyerim'] * .9)
+    col = mix(col, rgb(0xA4584E), m['nose'])
+    col = mix(col, rgb(0x3A2A27), m['pad'])
+    return col
+
+def coat_noons(Pq, W, parts, n, m):
+    """Noons: dark tabby cap, saddle and tail over white; white blaze, muzzle, chest, legs and belly."""
+    x, y, z = Pq[:, 0], Pq[:, 1], Pq[:, 2]; ax = np.abs(x)
+    hx, hy, hz, Ph = head_coords(Pq)
+    dark = rgb(0x1B1715)
+    tab = tabby(Pq, n, m, rgb(0x40372F), rgb(0x6C5E49), dark, 47, body_s=.7)
+    hd = np.clip(m['head'], 0, 1)
+    tab = mix(tab, dark, hd * sstep(.418, .45, hy) * (1 - sstep(.055, .095, hx)) * .88)      # near-black crown
+    e = (fbm(Pq, 6.0, 3, 53) - .5) * .075; e2 = (fbm(Pq, 22.0, 3, 59) - .5) * .02
+    yb = np.interp(z, [-.3, -.2, -.06, .08, .16, .27], [.13, .17, .255, .30, .335, .42]).astype(F) + e + e2
+    w = sstep(yb + .01, yb - .01, y)
+    w = np.maximum(w, np.clip(m['legf'] * 1.6, 0, 1))                                          # white forelegs and shoulders
+    patch = m['legf'] * (x > 0) * sstep(.065, .08, y) * sstep(.15, .13, y) * sstep(.52, .58, fbm(Pq, 14.0, 3, 61))
+    w = w * (1 - np.clip(patch, 0, 1))                                                         # one tabby smudge on a foreleg
+    w = w * (1 - np.clip(m['tail'] * 1.5, 0, 1))
+    eh = e * .12 + e2 * .25
+    lower = sstep(.394 - hx * .56 + eh + .006, .394 - hx * .56 + eh - .006, hy)
+    wd = .0125 + .022 * sstep(.398, .376, hy) + eh
+    blaze = sstep(wd + .003, wd - .003, hx) * sstep(.447, .435, hy + hx * .25) * sstep(.3, .32, hz)
+    wh = np.clip(np.maximum.reduce([lower, blaze, m['muzzle']]), 0, 1)
+    smudge = 1 - sstep(.0065, .0115, norm(Ph - V(-.019, .367, .388)))                            # the tabby freckle beside the nose
+    wh = wh * (1 - smudge)
+    tab = mix(tab, rgb(0x8C6E50), smudge * .7)
+    w = w * (1 - hd) + wh * hd
+    white = mix(np.tile(rgb(0xF7F4EE), (len(Pq), 1)), rgb(0xECE4D8), fbm(Pq, 12.0, 3, 67) * .6)
+    col = mix(tab, white, np.clip(w, 0, 1))
+    col = mix(col, rgb(0xDDA8A4), m['earin'] * .85)
+    col = mix(col, mix(np.tile(dark, (len(Pq), 1)), rgb(0x8A7466), np.clip(w, 0, 1)), m['eyerim'] * .85)
+    col = mix(col, rgb(0xE29A92), m['nose'])
+    col = mix(col, rgb(0xE8A6A6), m['pad'])
+    return col
+
+COATS = {'noons': coat_noons, 'moons': coat_moons, 'mango': coat_mango, 'domino': coat_domino, 'miso': coat_miso}
+ONLY = [a[5:] for a in ARGS if a.startswith('only=')]
+if ONLY: COATS = {k: v for k, v in COATS.items() if k in ONLY[0].split(',')}
 
 def dilate(img, filled, n=12):
     img = img.copy(); f = filled.copy()
@@ -382,7 +477,7 @@ if 'norender' not in ARGS:
         ti = nt_.nodes.new('ShaderNodeTexImage'); ti.image = bpy.data.images['coat_' + name]
         nt_.links.new(ti.outputs['Color'], b.inputs['Base Color'])
         me.materials.append(mat)
-        eyec = {'mango': (.35, .6, .12, 1), 'domino': (.85, .62, .08, 1), 'miso': (.15, .45, .85, 1)}[name]
+        eyec = {'mango': (.35, .6, .12, 1), 'domino': (.85, .62, .08, 1), 'miso': (.15, .45, .85, 1), 'noons': (.5, .5, .1, 1), 'moons': (.45, .6, .15, 1)}[name]
         for sx in (1, -1):
             e = J['eye'] * V(sx, 1, 1) + V(dx, 0, 0)
             bpy.ops.mesh.primitive_uv_sphere_add(radius=cat_def.EYE_R, location=(e[0], -e[2], e[1])); eo = bpy.context.object
@@ -396,10 +491,6 @@ if 'norender' not in ARGS:
             po.data.materials.append(pm)
     for i, name in enumerate(COATS): tex_obj(name, (i - 1) * .5)
     R = bpy.context.scene.render
-    R.resolution_x, R.resolution_y = 1500, 520
-    shoot(cam, 'coats_front', (.9, .5, 2.2), (0, .27, 0))
-    shoot(cam, 'coats_face', (.0, .43, 1.7), (0, .40, .28))
-    shoot(cam, 'coats_back', (-1.2, .9, -1.9), (0, .25, -.05))
     R.resolution_x, R.resolution_y = 760, 520
     for i, name in enumerate(COATS):
         dx = (i - 1) * .5
@@ -407,4 +498,6 @@ if 'norender' not in ARGS:
             if o.type == 'MESH' and o.name != 'Plane': o.hide_render = abs(o.location.x - dx) > .2 if o.name.startswith('Sphere') else (o.name != name)
         shoot(cam, 'coat_side_' + name, (dx + 1.5, .4, .1), (dx, .27, -.05))
         shoot(cam, 'coat_face_' + name, (dx + .28, .44, .85), (dx, .40, .27))
+        shoot(cam, 'coat_front_' + name, (dx + .02, .5, 1.1), (dx, .30, .2))
+        shoot(cam, 'coat_back_' + name, (dx - .9, 1.0, -.9), (dx, .25, -.05))
 log('done')

@@ -36,7 +36,7 @@ const world = new World(scene, houseAssets, { shadowSize: R.tier.shadow });
 const props = new Props(scene, world, houseAssets);
 const fx = new FX(scene, world);
 let coatIdx = 0;
-try { coatIdx = clamp(parseInt(localStorage.getItem('coat') || '0', 10) || 0, 0, COATS.length - 1); } catch {}
+try { coatIdx = Math.max(0, COATS.findIndex(c => c.id === localStorage.getItem('coatId'))); } catch {}
 const cat = new Cat(scene, catAssets, COATS[coatIdx]);
 cat.model.setShells(R.tier.shells);
 const sp = world.data.spawn;
@@ -100,7 +100,7 @@ window.addEventListener('pagehide', () => game.save());
 
 ui.onPick = (i) => {
   initAudio();
-  if (i !== coatIdx) { coatIdx = i; cat.setCoat(COATS[i]); try { localStorage.setItem('coat', String(i)); } catch {} }
+  if (i !== coatIdx) { coatIdx = i; cat.setCoat(COATS[i]); try { localStorage.setItem('coatId', COATS[i].id); } catch {} }
   cat.squashV = 2.2; cat.meow('chirp');
 };
 ui.onPlay = () => { initAudio(); loops.ambience.start(); sfx.pop(); setState('play'); };

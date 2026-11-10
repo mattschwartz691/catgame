@@ -1,3 +1,4 @@
 dev/*.png
 *.tmp
 .DS_Store
+images/
