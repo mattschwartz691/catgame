@@ -73,7 +73,7 @@ svg { width: 18px; height: 18px; fill: currentColor; }
 
 /* ---------- menu ---------- */
 #menu { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding: 12px 12px calc(14px + var(--sab)); pointer-events: none; }
-#menu .panel { pointer-events: auto; width: min(520px, 100%); text-align: center; background: rgba(255, 248, 238, .93); border-radius: 26px; padding: 14px 16px 10px;
+#menu .panel { pointer-events: auto; width: min(520px, 100%); text-align: center; max-height: 100%; overflow-y: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch; background: rgba(255, 248, 238, .93); border-radius: 26px; padding: 14px 16px 10px;
   box-shadow: 0 14px 44px rgba(20, 10, 5, .4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 #menu h1 { margin: 0; font-size: 27px; font-weight: 900; color: var(--ink); letter-spacing: -.4px; }
 #menu .sub { margin: 2px 0 10px; color: var(--soft); font-weight: 700; font-size: 14px; }

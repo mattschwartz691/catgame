@@ -132,7 +132,7 @@ function buildProc(kind, o) {
       const m = add(new THREE.CylinderGeometry(0.055, 0.055, 0.1, 20), std({ color: 0xffffff, roughness: 0.95 })); m.rotation.z = Math.PI / 2;
       const c = add(new THREE.CylinderGeometry(0.02, 0.02, 0.102, 12), std({ color: 0xb89a70, roughness: 0.9 })); c.rotation.z = Math.PI / 2;
     } break;
-    case 'bin': d = { r: 0.2, name: 'kitchen bin', snd: 'metal', fric: 5, mass: 3, spillBits: [0xf2ead8, 0x9bbb59, 0xd9534f, 0xc9a26b], score: 3 };
+    case 'bin': d = { r: 0.2, name: 'kitchen bin', snd: 'metal', fric: 5, mass: 3, tippy: true, spillBits: [0xf2ead8, 0x9bbb59, 0xd9534f, 0xc9a26b], score: 3 };
       add(new THREE.CylinderGeometry(0.17, 0.14, 0.5, 20), std({ color: 0x8a98a2, roughness: 0.35, metalness: 0.7 }), 0, 0.05, 0);
       add(new THREE.CylinderGeometry(0.175, 0.175, 0.03, 20), std({ color: 0x5c6870, roughness: 0.35, metalness: 0.7 }), 0, 0.31, 0); break;
     default: d = { r: 0.05, name: kind, snd: 'thud' }; add(new THREE.SphereGeometry(0.05, 10, 8), std({ color: col }));
@@ -195,9 +195,21 @@ export class Props {
       if (Math.abs(dy) > 0.42 || dx * dx + dz * dz > rr * rr) continue;
       const s = e.side || 0, sx = e.fz * s, sz = -e.fx * s;
       this.kick(p, (e.fx * 2.9 - sx * 1.3 + rnd(-0.3, 0.3)) * power, (p.d.round ? 2.2 : 1.5) * power, (e.fz * 2.9 - sz * 1.3 + rnd(-0.3, 0.3)) * power);
+      if (p.d.tippy) this.tip(p, e.fx, e.fz);
       n++; this.emit('bap', p);
     }
     return n;
+  }
+
+  // heavy things do not tumble on their own: lay them over in the direction of the shove
+  tip(p, fx, fz) {
+    if (p.tipped) return;
+    p.tipped = true;
+    const l = Math.hypot(fx, fz) || 1;
+    _ax.set(fz / l, 0, -fx / l); _q.setFromAxisAngle(_ax, Math.PI / 2);
+    p.g.quaternion.premultiply(_q); p.spin.set(0, 0, 0);
+    p.asleep = false; p.still = 0;
+    this.emit('tipped', p);
   }
 
   nearest(pos, maxD, filter) {
@@ -227,6 +239,7 @@ export class Props {
         const want = (vn * 1.15 + 0.35) * k, have = p.vel.x * nx + p.vel.z * nz;
         if (have < want) { p.vel.x += nx * (want - have); p.vel.z += nz * (want - have); }
         if (p.asleep && vn > 0.5) this.emit('nudge', p);
+        if (p.d.tippy && vn > 1.8) this.tip(p, nx, nz);
         p.asleep = false; p.still = 0;
       }
       if (p.asleep) continue;

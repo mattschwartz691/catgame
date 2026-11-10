@@ -230,16 +230,19 @@ export class Cat {
     } else if (this.jumpBuf > 0 && (this.grounded || this.coyote > 0)) {
       this.jumpBuf = 0; this.crouchT = 0.07; this.squashV -= 1.7; this.stopAction(); act = null; this.charge = 0; this.holdT = -0.4;
     }
-    if (!ctl.jump && !this.grounded && vel.y > 3 && !this.jumpCut) { vel.y *= 0.55; this.jumpCut = true; }
+    // releasing early gives a shorter hop, but a quick tap still clears a coffee table
+    this.airT = this.grounded ? 0 : (this.airT || 0) + dt;
+    if (!ctl.jump && !this.grounded && vel.y > 3 && !this.jumpCut && this.airT > 0.11) { vel.y *= 0.72; this.jumpCut = true; }
 
     // ---------------- physics
     if (!this.grounded) vel.y -= G * dt;
     const prevY = pos.y;
     pos.x += vel.x * dt; pos.z += vel.z * dt;
-    const assist = world.resolveXZ(pos, CAT_R, CAT_H, vel, !this.grounded);
+    const assist = world.resolveXZ(pos, CAT_R, CAT_H, vel, !this.grounded, ctl.mx * inv * Math.min(1, mag * 2), ctl.mz * inv * Math.min(1, mag * 2));
     if (assist && vel.y < 5.2 && vel.y > -7) { vel.y = 5.2; this.jumpCut = true; }   // scramble up a ledge
     if (!this.grounded) {
       pos.y += vel.y * dt;
+      if (world.H && pos.y + CAT_H > world.H) { pos.y = world.H - CAT_H; if (vel.y > 0) vel.y = 0; }     // there is a ceiling, even if we cannot see it
       if (vel.y > 0) {
         const c = world.ceilingAt(pos.x, pos.z, prevY + CAT_H);
         if (pos.y + CAT_H > c) { pos.y = c - CAT_H; vel.y = 0; }

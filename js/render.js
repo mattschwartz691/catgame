@@ -73,6 +73,7 @@ export class Renderer {
   }
 
   buildComposer() {
+    if (this.bloom) { this.bloom.dispose(); this.bloom = null; }
     if (this.composer) { this.composer.dispose(); this.composer = null; }
     if (!this.tier.post) { this.r.toneMapping = THREE.ACESFilmicToneMapping; return; }
     const size = this.r.getDrawingBufferSize(new THREE.Vector2());
@@ -105,7 +106,7 @@ export class Renderer {
   // Watch frame time and trade resolution / effects for smoothness.
   adapt(dt) {
     this.warm = (this.warm || 0) + dt;
-    if (this.warm < 6 || document.hidden) return;          // ignore shader-compile and loading hitches
+    if (this.warm < 6 || document.hidden || this.locked) return;          // ignore shader-compile and loading hitches
     this.frameMs += (dt * 1000 - this.frameMs) * 0.05;
     if (this.frameMs > 24) { this.slow += dt; this.fast = 0; } else if (this.frameMs < 14) { this.fast += dt; this.slow = 0; } else { this.slow = Math.max(0, this.slow - dt); this.fast = 0; }
     if (this.slow > 2.5) {

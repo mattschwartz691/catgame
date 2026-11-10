@@ -78,7 +78,7 @@ function setState(s) {
   input.enabled = s === 'play';
   input.jx = input.jy = 0; input.jump = input.paw = false;
   if (s === 'play') { introT = 1.3; camPitch = 0.5; game.onEnterPlay(); }
-  else { camPitch = 0.16; cat.vel.set(0, 0, 0); camYaw = cat.yaw + 0.5; }
+  else { camPitch = 0.16; cat.vel.set(0, 0, 0); camYaw = cat.yaw + 0.5; cat.stopAction(); game.onLeavePlay(); }
   resize();
 }
 function resize() {
@@ -95,7 +95,8 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 250));
-document.addEventListener('visibilitychange', () => { if (document.hidden) suspendAudio(); else resumeAudio(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { suspendAudio(); game.save(); } else resumeAudio(); });
+window.addEventListener('pagehide', () => game.save());
 
 ui.onPick = (i) => {
   initAudio();
@@ -107,11 +108,11 @@ ui.onMenu = () => setState('menu');
 ui.buildMenu(COATS, coatIdx);
 const QUAL = ['auto', 'low', 'medium', 'high'];
 let qual = 'auto'; try { qual = localStorage.getItem('quality') || 'auto'; } catch {}
-game.qualityName = qual; game.optUI();
+game.qualityName = qual; game.optUI(); R.locked = qual !== 'auto';
 ui.onQuality = () => {
   qual = QUAL[(QUAL.indexOf(qual) + 1) % QUAL.length];
   try { if (qual === 'auto') localStorage.removeItem('quality'); else localStorage.setItem('quality', qual); } catch {}
-  R.setTier(qual === 'auto' ? pickTier() : qual);
+  R.locked = qual !== 'auto'; R.setTier(qual === 'auto' ? pickTier() : qual);
   game.qualityName = qual; game.optUI();
 };
 game.shakeCam = (a) => { shake = Math.max(shake, a); };

@@ -60,7 +60,7 @@ export class Game {
     this.opts = { music: true, sound: true };
     this.fade = 0; this.time = 0; this.tipStage = 0; this.moved = 0;
     this.dirty = null; this.carry = null; this.zoomT = 0; this.zoomCool = 0; this.rideT = 0; this.sillT = 0; this.napT = 0;
-    this.strokes = {}; this.shakeCam = () => {};
+    this.strokes = {}; this.shakeCam = () => {}; this.onceSet = new Set(); this.digT = 0;
     TASKS.find(t => t.id === 'alltreats').target = d.treats.length;
     this.load();
     this.buildTreats();
@@ -84,13 +84,13 @@ export class Game {
     try {
       const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (!s) return;
       this.score = s.score || 0; this.prog = s.prog || {}; this.done = new Set(s.done || []); this.got = new Set(s.got || []);
-      this.spots = new Set(s.spots || []); this.naps = new Set(s.naps || []); this.snack = new Set(s.snack || []); Object.assign(this.opts, s.opts || {});
+      this.highs = new Set(s.highs || []); this.spots = new Set(s.spots || []); this.naps = new Set(s.naps || []); this.snack = new Set(s.snack || []); Object.assign(this.opts, s.opts || {});
       this.tipStage = s.tip || 0;
     } catch {}
   }
   save() {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ score: this.score, prog: this.prog, done: [...this.done], got: [...this.got], spots: [...this.spots], naps: [...this.naps], snack: [...this.snack], opts: this.opts, tip: this.tipStage }));
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ score: this.score, prog: this.prog, done: [...this.done], got: [...this.got], spots: [...this.spots], highs: [...(this.highs || [])], naps: [...this.naps], snack: [...this.snack], opts: this.opts, tip: this.tipStage }));
     } catch {}
   }
 
@@ -119,8 +119,10 @@ export class Game {
       } else { this.ui.banner('To-do done', t.text, `${this.done.size} of ${TASKS.length}`); sfx.taskDone(); }
       this.save();
     }
-    if (this.ui.tasksOpen) this.renderTasks();
+    if (this.ui.tasksOpen && Math.floor(this.prog[id]) !== Math.floor(before)) this.renderTasks();
   }
+  // one-off bonuses, so flushing forty times is not a winning strategy
+  once(key, points, msg) { if (this.onceSet.has(key)) return false; this.onceSet.add(key); this.chaos(points, msg); return true; }
   chaos(points, msg) {
     this.comboN++; this.comboT = 4.5;
     const m = Math.min(8, 1 + Math.floor((this.comboN - 1) / 2));
@@ -245,14 +247,14 @@ export class Game {
     let hit = 0; const P = e.point;
     for (const it of this.items) {
       if (!it.p) continue;
-      const r = it.r || 0.55; if (it.kind === 'tv') { if (Math.hypot(it.p[0] - P.x, it.p[2] - P.z) > 0.75 || Math.abs(it.p[1] - P.y) > 0.7) continue; }
-      else if ((it.p[0] - P.x) ** 2 + (it.p[1] - P.y) ** 2 + (it.p[2] - P.z) ** 2 > r * r) continue;
+      const r = it.kind === 'tv' ? 0.75 : (it.r || 0.55);       // reach is judged flat on the floor, with a generous height window
+      if (Math.hypot(it.p[0] - P.x, it.p[2] - P.z) > r || Math.abs(it.p[1] - P.y) > 0.85) continue;
       switch (it.kind) {
-        case 'tv': it.on = !it.on; it.mat.color.set(it.on ? 0xffffff : 0x000000); it.on ? sfx.tvOn() : sfx.tvOff(); it.on ? loops.tvStatic.start() : loops.tvStatic.stop(); if (it.on) { this.task('tv'); this.chaos(15, 'Telly time'); } hit++; break;
+        case 'tv': it.on = !it.on; it.mat.color.set(it.on ? 0xffffff : 0x000000); it.on ? sfx.tvOn() : sfx.tvOff(); if (it.on) { loops.tvStatic.start(); loops.tvStatic.set(0.35); this.task('tv'); this.once('tv', 15, 'Telly time'); } else loops.tvStatic.stop(); hit++; break;
         case 'boombox': this.opts.music = !this.opts.music || this.boom !== true; this.boom = this.opts.music; setMusicOn(this.opts.music); music.setMood(this.opts.music ? 'playful' : 'calm'); sfx.click(); this.optUI();
           this.ui.toast(this.opts.music ? 'Tunes on' : 'Tunes off'); hit++; break;
-        case 'faucet': it.on = !it.on; it.water.visible = it.on; sfx.click(); if (it.on) { this.task('tap'); this.chaos(15, 'Left the tap running'); } hit++; break;
-        case 'flush': sfx.flush(); this.task('flush'); this.chaos(15, 'Flushed'); hit++; break;
+        case 'faucet': it.on = !it.on; it.water.visible = it.on; sfx.click(); if (it.on) { this.task('tap'); this.once('tap' + it.p[0], 15, 'Left the tap running'); } hit++; break;
+        case 'flush': sfx.flush(); this.task('flush'); this.once('flush', 15, 'Flushed'); hit++; break;
         case 'tp': this.unrollTP(it, 0.3); hit++; break;
         case 'chess': if (!it.done) { it.done = true; this.fx.burst(new THREE.Vector3(...it.p), 22, [0x151515, 0xf2f0ea], { speed: 2, size: 0.022 }); sfx.hit({ kind: 'wood', vol: 0.8 }); this.task('chess'); this.chaos(40, 'Checkmate'); hit++; } break;
       }
@@ -272,9 +274,11 @@ export class Game {
     it.sheet.scale.y = drop; it.sheet.position.y = it.p[1] - drop / 2; it.roll.rotation.z += 1.3;
     if (it.len > drop) {
       if (!it.floor) it.floor = this.fx.ribbon(0xffffff, 0.1, 80);
-      const k = it.len - drop; it.floor.add(it.p[0] + it.n[0] * (0.06 + k), 0.006, it.p[2] + Math.sin(k * 5) * 0.06);
+      const k = it.len - drop;           // snake back and forth near the wall instead of running off through the house
+      const row = Math.floor(k / 1.2), u = k - row * 1.2;
+      it.floor.add(it.p[0] + it.n[0] * (0.08 + (row % 2 ? 1.2 - u : u)), 0.006 + row * 0.002, it.p[2] + 0.12 * row - 0.3 + Math.sin(k * 5) * 0.03);
     }
-    if (it.len < 0.4) this.chaos(10, 'Unrolling…');
+    this.once('tp', 10, 'Unrolling…');
   }
 
   // ------------------------------------------------------------ creatures
@@ -342,7 +346,7 @@ export class Game {
         for (const p of this.props.list) {        // shoves small things along
           if (p.dead || p.held || p.pos.y > 0.25) continue;
           const dx = p.pos.x - v.pos.x, dz = p.pos.z - v.pos.z, dd = Math.hypot(dx, dz);
-          if (dd < 0.19 + p.r && dd > 1e-3) { p.vel.x += dx / dd * 0.9; p.vel.z += dz / dd * 0.9; p.asleep = false; p.still = 0; }
+          if (dd < 0.19 + p.r && dd > 1e-3) { p.vel.x += dx / dd * 0.9 * dt * 60; p.vel.z += dz / dd * 0.9 * dt * 60; p.asleep = false; p.still = 0; }
         }
       }
       v.led.material.color.set(v.on ? 0x40ff90 : 0xff5040);
@@ -426,12 +430,12 @@ export class Game {
         case 'meow': sfx.meow({ kind: e || pick(['meow', 'meow', 'meow', 'chirp', 'kitten']) }); if (this.playing && (!e || e === 'meow')) this.task('meow'); break;
         case 'step': this.onStep(e); break;
         case 'paw': { const n = props.hit(e) + this.pawItems(e); if (n) sfx.bap(); else sfx.swipe(); } break;
-        case 'pounce': sfx.pounce(); break;
+        case 'pounce': sfx.pounce(); this.pounceCaught = false; break;
         case 'pounceLand': {
           props.hit({ ...e, side: 0 }, 0.42, 1.35);
           const f = this.fly; if (f.alive && f.pos.distanceTo(e.point) < 0.6) this.catchFly();
           const prey = props.nearest(e.point, 0.5, p => p.d.prey);
-          if (prey) { sfx.catch(); this.task('mouse'); this.chaos(30, 'Pounced!'); fx.burst(prey.pos, 5, 0xffffff, { speed: 1, size: 0.012 }); }
+          if (prey && !this.pounceCaught) { this.pounceCaught = true; sfx.catch(); this.task('mouse'); this.chaos(30, 'Pounced!'); fx.burst(prey.pos, 5, 0xffffff, { speed: 1, size: 0.012 }); }
         } break;
         case 'scratch': this.onScratch(e); break;
         case 'snore': e ? sfx.snoreOut() : sfx.snoreIn(); if (!e) fx.float(_v.copy(cat.pos).add(_a.set(0.1, 0.35, 0)), 'z', '#cfe6ff', { size: 0.11, life: 1.8, vy: 0.22 }); break;
@@ -456,7 +460,9 @@ export class Game {
           this.task('smash'); if (p.id.startsWith('marble_bust')) this.task('bust');
           this.chaos(25 * (d.score || 1), `Smashed the ${d.name}`);
         } break;
-        case 'knocked': this.task('knock'); this.chaos(10 * (e.d.score || 1), pick([`Knocked the ${e.name} off`, `The ${e.name} was in the way`, `Gravity check: ${e.name}`, `Bye bye, ${e.name}`])); break;
+        case 'tipped': this.fx.burst(e.pos, 20, e.d.spillBits || [0xffffff], { speed: 1.6, size: 0.02 }); sfx.hit({ kind: 'metal', vol: 1 }); this.task('bin'); this.chaos(30, 'Bin day'); break;
+        case 'knocked': if (e.id.startsWith('marble_bust')) this.task('bust');
+          this.task('knock'); this.chaos(10 * (e.d.score || 1), pick([`Knocked the ${e.name} off`, `The ${e.name} was in the way`, `Gravity check: ${e.name}`, `Bye bye, ${e.name}`])); break;
         case 'spill': {
           const p = e, d = p.d, gy = this.world.groundAt(p.pos.x, p.pos.z, p.pos.y + 0.05).y;
           if (d.spillBits) fx.burst(p.pos, 18, d.spillBits, { speed: 1.5, size: 0.016 });
@@ -585,7 +591,7 @@ export class Game {
         if (!this.snack.has(c.kind)) { this.snack.add(c.kind); this.task('snack'); }
         break;
       case 'knead': cat.startAction('knead', { max: 9 }); loops.purr.start(); break;
-      case 'litter': cat.startAction('scratch', { type: 'floor', surface: 'carpet', name: 'litter', max: 2.5 }); this.task('litter'); this.fx.burst(_v.copy(cat.pos).setY(cat.pos.y + 0.05), 12, [0xe8d9b5, 0xd9c7a0], { speed: 1.2, size: 0.014 }); this.chaos(10, 'Business concluded'); break;
+      case 'litter': cat.startAction('scratch', { type: 'floor', surface: 'carpet', name: 'litter', max: 2.5 }); this.task('litter'); this.fx.burst(_v.copy(cat.pos).setY(cat.pos.y + 0.05), 12, [0xe8d9b5, 0xd9c7a0], { speed: 1.2, size: 0.014 }); if (this.time - this.digT > 30) { this.digT = this.time; this.chaos(10, 'Business concluded'); } break;
       case 'nap': cat.startAction('nap', {}); this.napT = 0; this.napInfo = this.napSpot(); loops.purr.start(); music.setMood('sleepy'); break;
       case 'grab': {
         const p = c.prop; p.held = true; p.asleep = true; this.carry = p; cat.carrying = true;
@@ -613,6 +619,7 @@ export class Game {
     if (this.tipStage === 0) this.ui.tip('Drag the left side to move  ·  drag the right side to look', 0);
     this.renderTasks();
   }
+  onLeavePlay() { this.playing = false; this.save(); music.setMood('calm'); }
   preStep(dt) {
     const cat = this.cat, g = cat.ground;
     if (cat.grounded && g && g.mover) { cat.pos.x += g.dx; cat.pos.z += g.dz; }
@@ -621,6 +628,7 @@ export class Game {
     this.playing = playing; this.time += dt;
     const cat = this.cat, t = this.time;
     this.updateActors(dt, t);
+    this.fade = damp(this.fade, playing ? cat.sleepW * 0.3 : 0, 2, dt);
     if (!playing) return;
     // combo + zoomies timers
     if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) { this.comboN = 0; this.mult = 1; this.save(); } }
@@ -638,13 +646,16 @@ export class Game {
       const before = r.length;
       if (r.add(p.pos.x, p.pos.y - p.r + 0.005, p.pos.z)) { const dl = r.length - before; this.task(p.d.trail === 'tp' ? 'tp' : 'yarn', dl); if (p.d.trail === 'tp' && Math.random() < 0.08) sfx.paperRip({ vol: 0.4 }); }
     }
-    // the bin counts once it is on its side
-    for (const p of this.props.list) if (p.id === 'bin' && !p.tipped && !p.asleep) { _v.set(0, 1, 0).applyQuaternion(p.g.quaternion); if (_v.y < 0.45) { p.tipped = true; this.fx.burst(p.pos, 20, p.d.spillBits, { speed: 1.6, size: 0.02 }); sfx.hit({ kind: 'metal', vol: 1 }); this.task('bin'); this.chaos(30, 'Bin day'); } }
+    // a pounce catches prey it sails over, not only what it lands on
+    if (cat.pouncing && !this.pounceCaught) {
+      const prey = this.props.nearest(_v.set(cat.pos.x, cat.pos.y, cat.pos.z), 0.42, p => p.d.prey);
+      if (prey) { this.pounceCaught = true; sfx.catch(); this.task('mouse'); this.chaos(30, 'Pounced!'); this.fx.burst(prey.pos, 5, 0xffffff, { speed: 1, size: 0.012 }); this.props.kick(prey, cat.vel.x * 0.4, 1.5, cat.vel.z * 0.4); }
+    }
     // places
     if (cat.grounded) {
       const g = cat.ground, pos = cat.pos;
       if (g && g.spot && g.spot !== 'windowsill') {
-        if (this.discover(g.spot, `Found ${g.spot}`) || true) { if (pos.y >= 1.4) { if (!this.highs) this.highs = new Set(this.spotsHigh || []); if (!this.highs.has(g.spot)) { this.highs.add(g.spot); this.task('high'); } } }
+        if (this.discover(g.spot, `Found ${g.spot}`) || true) { if (pos.y >= 1.4) { if (!this.highs) this.highs = new Set(); if (!this.highs.has(g.spot)) { this.highs.add(g.spot); this.task('high', this.highs.size, true); this.save(); } } }
         if (g.spot === 'the bathtub' && cat.sitW > 0.7) this.task('tub');
         if (g.spot === 'the cardboard box' && (cat.sitW > 0.7 || cat.lieW > 0.5)) this.task('box');
       }
@@ -660,11 +671,10 @@ export class Game {
         if (n.sun) this.task('sun'); if (n.box) this.task('box'); if (n.tub) this.task('tub');
       }
     }
-    this.fade = damp(this.fade, cat.sleepW * 0.3, 2, dt);
     // tips for first-timers
     if (this.tipStage < 3) {
       this.moved += Math.hypot(cat.vel.x, cat.vel.z) * dt;
-      if (this.tipStage === 0 && this.moved > 2.5) { this.tipStage = 1; this.ui.tip('JUMP onto things · PAW at things · hold PAW, then let go, to pounce', 9); }
+      if (this.tipStage === 0 && this.moved > 2.5) { this.tipStage = 1; this.ui.tip('Hold JUMP to leap higher · PAW at things · hold PAW, then let go, to pounce', 9); }
       else if (this.tipStage === 1 && this.moved > 14) { this.tipStage = 2; this.ui.tip('The orange button changes with where you are: scratch, nap, eat…', 8); }
       else if (this.tipStage === 2 && this.moved > 30) { this.tipStage = 3; this.ui.tip('Tap the list (top right) to see your Cat To-Do List', 8); this.save(); }
     }

@@ -6,9 +6,11 @@ export class UI {
     this.onPick = this.onPlay = this.onMenu = this.onMusic = this.onSound = this.onQuality = this.onReset = this.onTasksOpen = () => {};
     this.tasksOpen = false; this.state = 'load';
     $('play').addEventListener('click', () => this.onPlay());
-    $('pauseBtn').addEventListener('click', () => this.onMenu());
-    $('tasksBtn').addEventListener('click', () => this.showTasks(true));
-    $('tasksClose').addEventListener('click', () => this.showTasks(false));
+    // pointerdown, not click: these must work while another finger is holding the stick
+    const tap = (id, fn) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
+    tap('pauseBtn', () => this.onMenu());
+    tap('tasksBtn', () => this.showTasks(true));
+    tap('tasksClose', () => this.showTasks(false));
     $('tasks').addEventListener('click', e => { if (e.target.id === 'tasks') this.showTasks(false); });
     $('optMusic').addEventListener('click', () => this.onMusic());
     $('optSound').addEventListener('click', () => this.onSound());
@@ -72,6 +74,9 @@ export class UI {
   bump(id) { const s = $(id); s.classList.remove('bump'); void s.offsetWidth; s.classList.add('bump'); }
   setScore(n, bump = true) { $('scoreNum').textContent = n.toLocaleString(); if (bump) this.bump('chaos'); }
   setCombo(mult, frac) {
+    const w = Math.round(frac * 50);
+    if (mult === this._cm && w === this._cw) return;
+    this._cm = mult; this._cw = w;
     $('combo').textContent = mult > 1 ? '×' + mult : '';
     const bar = $('comboBar'); bar.style.opacity = mult > 1 ? 1 : 0; bar.firstElementChild.style.width = Math.round(frac * 100) + '%';
   }

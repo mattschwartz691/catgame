@@ -256,7 +256,7 @@ def living():
     put('wooden_bookshelf_worn', -6.9, -0.82, rot=0, collide=('shelves', [0.1, 0.4, 0.68, 0.96, 1.28, 1.66, 2.06]), cam=True, spot='the bookshelf')
     put('mid_century_lounge_chair', -6.85, 0.75, rot=90, collide=('seat', 0.42, 0.25))
     put('vintage_grandfather_clock_01', -0.92, 4.9, rot=270, cam=True, spot='the grandfather clock')
-    put('side_table_tall_01', -5.55, 4.95, rot=0, collide=('table', 0.05))
+    put('side_table_tall_01', -5.55, 4.6, rot=0, collide=('table', 0.05))
     put('potted_plant_01', -1.05, -0.7, collide='none'); collider(-1.3, -0.8, 0, 0.45, -0.95, -0.45)
     put('Rockingchair_01', -4.6, 4.3, rot=180, collide=('seat', 0.42, 0.2))
     put('fancy_picture_frame_01', -0.69, 0.7, rot=270, y=1.62, collide='none')
@@ -270,7 +270,8 @@ def living():
     cat_tree(-7.25, 4.7)
     scratch_post(-1.15, 1.95)
     floor_lamp(-7.55, 0.02)
-    floor_lamp(-1.1, 5.0, on=True)
+    floor_lamp(-1.75, 5.15, on=True)
+    wall_shelf(-0.9, -0.67, 1.42, 3.7, 4.35)
     rug('living', -5.3, -1.65, -0.55, 2.35, [0x7A2E2A, 0x1F3D4F, 0xE8D3A8, 0xC98A3A], seed=1)
     for a in ((-7.0, -5.0), (-3.9, -1.9)): curtain('z', 5.5 - 0.07, a[0], a[1], 2.15, -1, (0.82, 0.3, 0.26), 'living')
     curtain('x', -8 + 0.07, 1.2, 3.6, 2.15, 1, (0.82, 0.3, 0.26), 'living')
@@ -280,7 +281,7 @@ def living():
     prop('throw_pillows_01#0', -4.45, 0.55, 0.1, rot=90); prop('throw_pillows_01#1', -4.45, 0.55, 1.75, rot=90)
     prop('ceramic_vase_01', -2.85, 0.53, 0.45); prop('tea_set_01#8', -2.9, 0.53, 1.1); prop('tea_set_01#0', -2.6, 0.53, 1.3); prop('tea_set_01#1', -3.1, 0.53, 1.4)
     prop('mantel_clock_01', -0.98, 0.95, 1.2, rot=270); prop('standing_picture_frame_01', -0.95, 0.95, -0.05, rot=270)
-    prop('marble_bust_01', -5.55, 0.77, 4.95, rot=180)
+    prop('marble_bust_01', -5.55, 0.77, 4.6, rot=180)
     prop('antique_ceramic_vase_01', -6.5, 0.96, -0.8, scale=0.6); prop('garden_gnome', -7.3, 1.28, -0.82, scale=0.55); prop('ceramic_vase_03', -6.9, 1.66, -0.8, scale=0.8)
     prop('carved_wooden_elephant', -6.4, 1.28, -0.8, scale=1.6); prop('concrete_cat_statue', -7.35, 2.06, -0.8); prop('brass_vase_01', -6.5, 2.06, -0.82)
     prop('ceramic_vase_02', -4.75, 1.16, 5.22, scale=0.9); prop('standing_picture_frame_02', -4.15, 1.16, 5.22, rot=180); prop('ceramic_vase_04', -4.45, 0.78, 5.22, scale=0.9)
@@ -508,7 +509,7 @@ def utility():
     box(lx0, lx1, 0, 0.03, lz0, lz1, tray, bevel=0.01, collide=False); box(lx0 + 0.03, lx1 - 0.03, 0.03, 0.075, lz0 + 0.03, lz1 - 0.03, sand, bevel=0.004, collide=False)
     for (a0, a1, c0, c1) in ((lx0, lx1, lz0, lz0 + 0.03), (lx0, lx1, lz1 - 0.03, lz1), (lx0, lx0 + 0.03, lz0, lz1), (lx1 - 0.03, lx1, lz0, lz1)):
         box(a0, a1, 0.02, 0.14, c0, c1, tray, bevel=0.012, collide=False)
-    collider(lx0, lx1, 0, 0.075, lz0, lz1)
+    collider(lx0, lx1, 0, 0.055, lz0, lz1)
     S['zones'].append(dict(kind='litter', b=[lx0, lx1, lz0, lz1], name='the litter box'))
     # robot vacuum dock
     box(7.72, 7.92, 0, 0.12, -1.9, -1.6, dark, bevel=0.02, collide=False)
@@ -519,7 +520,7 @@ def utility():
     rug('utility', 5.6, 7.0, -1.3, -0.4, [0xD9B36A, 0x7A5A3A, 0xF1E6D2], kind='stripes', scratch=False)
     prop('watering_can_metal_01', 7.6, 0, -0.7, rot=60); prop('catfood', 4.86, 1.45, -1.7); prop('cereal', 4.86, 1.45, -1.2); prop('sock', 5.6, 0.2, 0.45); prop('sock', 6.3, 0, -1.0)
     prop('bleach', 4.86, 1.45, -0.75); prop('ball', 6.8, 0, 0.3, col=0xE8556A)
-    for t in ((4.95, 0.87, -1.25), (4.86, 1.45, -0.6), (7.5, 0.075, 0.42), (5.6, 0.17, 0.45), (7.86, 1.2, -0.55), (6.4, 0, -1.8)):
+    for t in ((4.95, 0.87, -1.25), (4.86, 1.45, -0.6), (7.5, 0.055, 0.42), (5.6, 0.17, 0.45), (7.86, 1.2, -0.55), (6.4, 0, -1.8)):
         treat(*t)
 
 

@@ -30,6 +30,7 @@ export class Input {
       try { canvas.setPointerCapture(e.pointerId); } catch {}
     });
     canvas.addEventListener('pointermove', e => {
+      if (!this.enabled) { lx = e.clientX; ly = e.clientY; return; }
       if (e.pointerId === stickId) {
         let dx = e.clientX - sx, dy = e.clientY - sy;
         const d = Math.hypot(dx, dy);
@@ -76,7 +77,7 @@ export class Input {
     window.addEventListener('blur', () => { this.keys = {}; this.jump = this.paw = false; });
 
     // stop iOS rubber-banding, pinch and double-tap zoom
-    document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+    document.addEventListener('touchmove', e => { if (!(e.target.closest && e.target.closest('#taskList, #menu .panel'))) e.preventDefault(); }, { passive: false });
     document.addEventListener('gesturestart', e => e.preventDefault());
     document.addEventListener('dblclick', e => e.preventDefault());
   }

@@ -112,7 +112,7 @@ export class World {
   }
 
   // ------------------------------------------------------------ queries
-  resolveXZ(pos, r, h, vel, airborne) {
+  resolveXZ(pos, r, h, vel, airborne, wx = 0, wz = 0) {
     let assist = 0;
     for (const b of this.boxes) {
       if (pos.y >= b.maxY - STEP || pos.y + h <= b.minY) continue;
@@ -131,10 +131,8 @@ export class World {
         else if (m === n) { nz = -1; pos.z = b.minZ - r; } else { nz = 1; pos.z = b.maxZ + r; }
       }
       const vn = vel.x * nx + vel.z * nz;
-      if (vn < 0) {
-        if (airborne && vn < -0.25 && b.maxY - pos.y < 0.34) assist = 1;
-        vel.x -= vn * nx; vel.z -= vn * nz;
-      }
+      if (airborne && b.maxY - pos.y < 0.34 && b.maxY + h <= this.H && (vn < -0.25 || wx * nx + wz * nz < -0.3)) assist = 1;   // only onto things there is room to stand on
+      if (vn < 0) { vel.x -= vn * nx; vel.z -= vn * nz; }
     }
     const bd = this.bounds;
     pos.x = clamp(pos.x, bd.x0, bd.x1); pos.z = clamp(pos.z, bd.z0, bd.z1);
