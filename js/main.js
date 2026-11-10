@@ -234,5 +234,7 @@ setState('menu');
 ui.loading(1, '');
 requestAnimationFrame(frame);
 
+if (new URLSearchParams(location.search).get('bench')) setTimeout(() => { ui.onPlay(); import('./bench.js').then(m => m.runBench(window.__game)); }, 2500);
+
 window.__game = { cat, world, props, fx, game, input, camera, scene, R, setState, step, dbg, THREE, sfx, moreReady,
   get state() { return state; }, set camYaw(v) { camYaw = v; }, get camYaw() { return camYaw; }, set camPitch(v) { camPitch = v; }, set camDist(v) { camDist = v; } };
