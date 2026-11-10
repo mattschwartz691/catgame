@@ -4,7 +4,8 @@ A 3D cat sandbox for the phone browser. The humans are out; you are the cat.
 
 Pick one of five cats, then roam a seven-room house: knock things off shelves, shred the sofa, hunt the fly,
 ride the robot vacuum, play the piano, nap in a sunbeam, and work through the Cat To-Do List. The front door is
-open: walk down the street to a second, bigger house (a colonial with a staircase, sunroom, garage and deck).
+open: walk down the street to a second, bigger house: a red colonial with four storeys to explore, from the billiard
+room in the basement to the attic. It loads in the background after the game starts.
 
 ## Playing
 

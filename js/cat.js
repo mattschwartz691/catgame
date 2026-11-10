@@ -242,7 +242,7 @@ export class Cat {
     if (assist && vel.y < 5.2 && vel.y > -7) { vel.y = 5.2; this.jumpCut = true; }   // scramble up a ledge
     if (!this.grounded) {
       pos.y += vel.y * dt;
-      if (world.H && pos.y + CAT_H > world.H) { pos.y = world.H - CAT_H; if (vel.y > 0) vel.y = 0; }     // there is a ceiling, even if we cannot see it
+      { const top = world.ceilY ? world.ceilY(prevY) : world.H; if (top && pos.y + CAT_H > top) { pos.y = top - CAT_H; if (vel.y > 0) vel.y = 0; } }     // there is a ceiling, even if we cannot see it
       if (vel.y > 0) {
         const c = world.ceilingAt(pos.x, pos.z, prevY + CAT_H);
         if (pos.y + CAT_H > c) { pos.y = c - CAT_H; vel.y = 0; }
@@ -507,6 +507,14 @@ export class Cat {
       const len = _d.length() || 1;
       pts[i].copy(pts[i - 1]).addScaledVector(_d, SEG * S / len);
       if (pts[i].y < floorY + 0.03) pts[i].y = floorY + 0.03;
+      // a tail does not go through walls or furniture: slide it along the surface, curling upward
+      const sb = world.solidAt && world.solidAt(pts[i].x, pts[i].y, pts[i].z);
+      if (sb) {
+        const p = pts[i], l = p.x - sb.minX, r = sb.maxX - p.x, n = p.z - sb.minZ, f = sb.maxZ - p.z, up = sb.maxY - p.y, m = Math.min(l, r, n, f, up < 0.12 ? up : 1e9);
+        if (m === up) p.y = sb.maxY + 0.01;
+        else { if (m === l) p.x = sb.minX - 0.012; else if (m === r) p.x = sb.maxX + 0.012; else if (m === n) p.z = sb.minZ - 0.012; else p.z = sb.maxZ + 0.012; p.y += SEG * S * 0.55; }
+        _d.subVectors(p, pts[i - 1]); const l2 = _d.length() || 1; p.copy(pts[i - 1]).addScaledVector(_d, SEG * S / l2);
+      }
     }
     this.tailInit = true;
     for (let i = 0; i < TAIL_N; i++) this.tailLoc[i].copy(pts[i]).applyMatrix4(_inv);

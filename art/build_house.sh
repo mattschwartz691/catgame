@@ -23,6 +23,8 @@ for f in $A/house.glb $AP/props.glb; do
 done
 /tmp/claude-1003/-mnt-data-Games-Catgame/d6b6de78-a26d-4431-abfc-8faf17ff6cc6/scratchpad/venv/bin/python - <<PY
 from PIL import Image
-Image.open('$T/out/lightmap$SFX.png').convert('RGB').save('$A/lightmap.webp', quality=92, method=6)
+im = Image.open('$T/out/lightmap$SFX.png').convert('RGB'); im.save('$A/lightmap.webp', quality=92, method=6)
+if im.width > 2048: im.resize((2048, 2048), Image.LANCZOS).save('$A/lightmap_half.webp', quality=92, method=6)
 PY
 ls -la $A
+python3 /mnt/data/Games/Catgame/art/manifest.py

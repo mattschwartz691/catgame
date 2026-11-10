@@ -25,13 +25,16 @@ def B(x, y, z): return Vector((x, -z, y))
 def reset():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     for k in S: S[k] = {} if isinstance(S[k], dict) else []
-    STATIC.clear(); BAKE_ONLY.clear(); EXT.clear(); MATS.clear(); _lm_cache.clear(); _lib_loaded.clear()
+    WALLS.clear(); STATIC.clear(); BAKE_ONLY.clear(); EXT.clear(); MATS.clear(); _lm_cache.clear(); _lib_loaded.clear(); _IMG.clear()
 
 # ------------------------------------------------------------------ materials
+_IMG = {}
 def _img(path, colorspace='sRGB'):
-    im = bpy.data.images.load(path, check_existing=True)
-    im.colorspace_settings.name = colorspace
-    return im
+    # our own cache: check_existing would also match tinted copies of the same file and tint them twice
+    key = (path, colorspace)
+    if key not in _IMG or _IMG[key].name not in bpy.data.images:
+        im = bpy.data.images.load(path, check_existing=False); im.colorspace_settings.name = colorspace; _IMG[key] = im
+    return _IMG[key]
 
 def pbr(name, tex, tile=1.0, tint=None, rough=None, normal=1.0, res='1k', nonormal=False):
     """Tiling PBR material from a Poly Haven texture set. tile = metres covered by one repeat."""
@@ -374,10 +377,18 @@ def slab(axis, inner, outer, a0, a1, y0, y1, mat, name='wall'):
     bmesh.ops.delete(bm, geom=kill, context='FACES')
     return _finish(bm, name, mat, static=False)
 
+WALLS = []        # (axis, at, a0, a1, fade key) of every wall built, newest last
+def wall_key(axis, at, a0, a1):
+    """Fade key of the most recently built wall that this stretch lies against (so wall-hung things fade with it)."""
+    for (ax, w_at, w0, w1, key) in reversed(WALLS):
+        if ax == axis and abs(w_at - at) < 0.2 and a0 >= w0 - 0.4 and a1 <= w1 + 0.4: return key
+    return None
+
 def wall(axis, at, a0, a1, mat_neg, mat_pos, H, T, openings=(), key=None, ext=None, base=None, trim=None):
     """Wall on the plane axis=at from a0..a1. mat_neg faces the lower-coordinate side. openings: (b0, b1, y0, y1, kind).
     ext: 'neg' | 'pos' marks that side as outdoors (not lightmapped). Returns nothing; registers colliders."""
     ops = sorted(openings)
+    WALLS.append((axis, at, a0, a1, key))
     for side, mat in (('neg', mat_neg), ('pos', mat_pos)):
         outer = at - T / 2 if side == 'neg' else at + T / 2
         pieces = []; cur = a0
@@ -493,3 +504,37 @@ def offset_data(S, ox, oz):
         if 'b' in d: b4(d['b'])
     for t in S['treats']: p3(t)
     for n in S['nav']: p2(n)
+
+
+class level:
+    """Build one storey as if its floor were at y=0, then lift everything made inside the block to floor height y."""
+    def __init__(self, y): self.y = y
+    def __enter__(self):
+        self.objs = set(o.name for o in bpy.context.scene.collection.all_objects)
+        self.n = {k: len(v) for k, v in S.items() if isinstance(v, list)}
+        return self
+    def __exit__(self, *e):
+        y = self.y
+        new = lambda k: S[k][self.n[k]:]
+        for d in new('scratch') + new('zones'): d['y0'] = y
+        for o in list(bpy.context.scene.collection.all_objects):
+            if o.name not in self.objs: o['lv'] = float(y)
+        if not y: return
+        for o in list(bpy.context.scene.collection.all_objects):
+            if o.name in self.objs: continue
+            if o.type == 'MESH': o.data.transform(Matrix.Translation((0, 0, y)))
+            else: o.location.z += y
+        r = lambda v: round(v + y, 4)
+        for c in new('colliders'): c['b'][2] = r(c['b'][2]); c['b'][3] = r(c['b'][3])
+        for d in new('props') + new('lights'): d['p'][1] = r(d['p'][1])
+        for d in new('scratch'):
+            if 'y' in d: d['y'] = [r(d['y'][0]), r(d['y'][1])]
+        for d in new('zones'):
+            if 'p' in d: d['p'][1] = r(d['p'][1])
+            if 'y' in d: d['y'] = r(d['y'])
+        for d in new('windows'): d['y'] = [r(d['y'][0]), r(d['y'][1])]
+        for d in new('items'):
+            for k in ('p', 'basin', 'screen'):
+                if k in d: d[k][1] = r(d[k][1])
+            if 'y' in d: d['y'] = r(d['y'])
+        for t in new('treats'): t[1] = r(t[1])

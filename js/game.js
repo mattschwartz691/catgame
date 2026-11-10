@@ -42,6 +42,8 @@ const TASKS = [
   ['Explorer', 'visit', 'Visit the big house down the street', 1],
   ['Explorer', 'stairs', 'Climb to the top of the stairs', 1],
   ['Explorer', 'car', 'Sit on the roof of a car', 1],
+  ['Explorer', 'attic', 'Find the attic of the big house', 1],
+  ['Mischief', 'billiards', 'Pot 3 billiard balls the cat way', 3],
   ['Comfort', 'naps', 'Nap in 3 different cosy spots', 3],
   ['Comfort', 'sun', 'Snooze in a sunbeam', 1],
   ['Comfort', 'knead', 'Make biscuits on something soft', 14],
@@ -64,7 +66,6 @@ export class Game {
     this.fade = 0; this.time = 0; this.tipStage = 0; this.moved = 0;
     this.dirty = null; this.carry = null; this.zoomT = 0; this.zoomCool = 0; this.rideT = 0; this.sillT = 0; this.napT = 0;
     this.strokes = {}; this.shakeCam = () => {}; this.onceSet = new Set(); this.digT = 0; this.lastSite = this.world.site;
-    TASKS.find(t => t.id === 'alltreats').target = d.treats.length;
     this.load();
     this.buildTreats();
     this.buildItems();
@@ -144,7 +145,7 @@ export class Game {
     if (this.spots.has(key)) return false;
     this.spots.add(key); this.ui.toast(msg, 'find'); sfx.pop(); this.score += pts; this.ui.setScore(this.score); this.save(); return true;
   }
-  syncUI(bump) { this.ui.setScore(this.score, bump); this.ui.setTreats(this.got.size, this.data.treats.length, bump); this.ui.setCombo(1, 0); }
+  syncUI(bump) { this.ui.setScore(this.score, bump); this.ui.setTreats(this.got.size, this.treatTotal, bump); this.ui.setCombo(1, 0); }
 
   // ------------------------------------------------------------ treats
   buildTreats() {
@@ -156,11 +157,14 @@ export class Game {
       pos.push(...gi.attributes.position.array); nor.push(...gi.attributes.normal.array);
     }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-    const mat = new THREE.MeshStandardMaterial({ color: 0xffc04a, emissive: 0xff9a1a, emissiveIntensity: 0.9, roughness: 0.35, metalness: 0.3 });
+    if (this.treatMesh) { this.scene.remove(this.treatMesh); this.treatMesh.dispose(); }
+    const mat = new THREE.MeshStandardMaterial({ clippingPlanes: [this.world.clip], color: 0xffc04a, emissive: 0xff9a1a, emissiveIntensity: 0.9, roughness: 0.35, metalness: 0.3 });
     const T = this.data.treats;
     this.treatMesh = new THREE.InstancedMesh(geo, mat, T.length); this.treatMesh.frustumCulled = false; this.treatMesh.castShadow = false;
     this.scene.add(this.treatMesh);
     this.treatPh = T.map(() => rnd(0, 6.28));
+    this.treatTotal = Math.max(T.length, (this.data.manifest && this.data.manifest.treats) || 0);
+    TASKS.find(t => t.id === 'alltreats').target = this.treatTotal;
   }
   updateTreats(dt, t) {
     const T = this.data.treats, cat = this.cat;
@@ -174,7 +178,7 @@ export class Game {
       if (this.playing && dx * dx + dz * dz < 0.16 && Math.abs(dy) < 0.42) {
         this.got.add(i); this.treatCombo = (this.treatT > 0 ? (this.treatCombo || 0) + 1 : 0); this.treatT = 3;
         sfx.collect({ n: this.treatCombo }); this.fx.burst(_a, 8, [0xffd27a, 0xfff1c9], { speed: 1.2, grav: 0.3, size: 0.016, life: 0.8 });
-        this.score += 10; this.ui.setScore(this.score, false); this.ui.setTreats(this.got.size, T.length);
+        this.score += 10; this.ui.setScore(this.score, false); this.ui.setTreats(this.got.size, this.treatTotal);
         this.task('treats', this.got.size, true); this.task('alltreats', this.got.size, true); this.save();
       }
     }
@@ -183,15 +187,16 @@ export class Game {
   }
 
   // ------------------------------------------------------------ interactive items
-  buildItems() {
-    const d = this.data, sc = this.scene;
-    this.items = d.items.map(i => ({ ...i }));
-    const by = k => this.items.filter(i => i.kind === k);
+  buildItems(list = this.data.items) {
+    const sc = this.scene, clip = [this.world.clip];
+    const fresh = list.map(i => ({ ...i }));
+    this.items = (this.items || []).concat(fresh);
+    const by = k => fresh.filter(i => i.kind === k);
     // TV
     for (const it of by('tv')) {
       const cv = document.createElement('canvas'); cv.width = 128; cv.height = 96; it.cv = cv; it.g = cv.getContext('2d');
       it.tex = new THREE.CanvasTexture(cv); it.tex.colorSpace = THREE.SRGBColorSpace;
-      it.mat = new THREE.MeshBasicMaterial({ map: it.tex, color: 0x000000 });
+      it.mat = new THREE.MeshBasicMaterial({ map: it.tex, color: 0x000000, clippingPlanes: clip });
       const m = new THREE.Mesh(new THREE.PlaneGeometry(it.size[0], it.size[1]), it.mat);
       m.position.set(it.p[0], it.p[1], it.p[2]); m.rotation.y = Math.atan2(it.n[0], it.n[1]); sc.add(m);
       it.on = false; it.birds = [0, 1, 2].map(i => ({ x: rnd(0, 128), y: 22 + i * 16, v: rnd(18, 34) }));
@@ -207,12 +212,12 @@ export class Game {
     // taps: a stream of water that can be switched on
     for (const it of by('faucet')) {
       const h = it.p[1] - it.basin[1];
-      it.water = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.01, h, 6), new THREE.MeshPhysicalMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.6, roughness: 0.05 }));
+      it.water = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.01, h, 6), new THREE.MeshPhysicalMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.6, roughness: 0.05, clippingPlanes: clip }));
       it.water.position.set(it.p[0], it.p[1] - h / 2, it.p[2]); it.water.visible = false; sc.add(it.water); it.on = false;
     }
     // toilet-roll holder on the wall
     for (const it of by('tp')) {
-      const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, side: THREE.DoubleSide });
+      const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, side: THREE.DoubleSide, clippingPlanes: clip });
       const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.1, 18), white); roll.rotation.x = Math.PI / 2;
       roll.position.set(it.p[0], it.p[1], it.p[2]); roll.castShadow = true; sc.add(roll); it.roll = roll;
       it.sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 1), white); it.sheet.rotation.y = Math.PI / 2;
@@ -227,9 +232,10 @@ export class Game {
       for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.1, 6), new THREE.MeshStandardMaterial({ color: [0xf2c14e, 0x4f9bd9, 0x9bdb5a, 0xffffff][i] })); f.position.set(Math.sin(i * 1.6) * 0.03, -it.len - 0.08, Math.cos(i * 1.6) * 0.03); f.rotation.x = Math.PI; piv.add(f); }
       Object.assign(it, { piv, ax: 0, az: 0, vx: 0, vz: 0, bob: new THREE.Vector3(it.p[0], it.p[1] - it.len, it.p[2]) });
     }
-    this.trails = new Map();
-    this.sockStash = 0;
+    if (!this.trails) { this.trails = new Map(); this.sockStash = 0; }
   }
+  // a house that finished loading after play began
+  addArea(d) { this.buildTreats(); this.buildItems(d.items || []); this.syncUI(false); }
   drawTV(it, t) {
     const g = it.g; const gr = g.createLinearGradient(0, 0, 0, 96); gr.addColorStop(0, '#7cc4f2'); gr.addColorStop(0.7, '#d9f0fb'); gr.addColorStop(0.71, '#7fbf6a'); gr.addColorStop(1, '#5fa04e');
     g.fillStyle = gr; g.fillRect(0, 0, 128, 96);
@@ -465,6 +471,7 @@ export class Game {
         } break;
         case 'tipped': this.fx.burst(e.pos, 20, e.d.spillBits || [0xffffff], { speed: 1.6, size: 0.02 }); sfx.hit({ kind: 'metal', vol: 1 }); this.task('bin'); this.chaos(30, 'Bin day'); break;
         case 'knocked': if (e.id.startsWith('marble_bust')) this.task('bust');
+          if (e.id === 'ball' && e.homeY < -1) this.task('billiards');
           this.task('knock'); this.chaos(10 * (e.d.score || 1), pick([`Knocked the ${e.name} off`, `The ${e.name} was in the way`, `Gravity check: ${e.name}`, `Bye bye, ${e.name}`])); break;
         case 'spill': {
           const p = e, d = p.d, gy = this.world.groundAt(p.pos.x, p.pos.z, p.pos.y + 0.05).y;
@@ -476,10 +483,11 @@ export class Game {
     };
   }
   surfaceAt(x, y, z) {
-    if (y > 0.05) return 'wood';
-    if (x < -0.6 && z < -1.2) return 'tile';
-    if (x > 1.4 && x < 8 && z > -2 && z < 0.9) return 'tile';
-    for (const s of this.data.scratch) if (s.type === 'floor' && x > s.b[0] && x < s.b[1] && z > s.b[2] && z < s.b[3]) return 'carpet';
+    const fl = this.world.floorY(y);
+    if (y - fl > 0.05) return 'wood';
+    if (this.world.site === 'home') { if (x < -0.6 && z < -1.2) return 'tile'; if (x > 1.4 && x < 8 && z > -2 && z < 0.9) return 'tile'; }
+    else if (!this.world.site) return 'tile';
+    for (const s of this.data.scratch) if (s.type === 'floor' && (s.y0 || 0) === fl && x > s.b[0] && x < s.b[1] && z > s.b[2] && z < s.b[3]) return 'carpet';
     return 'wood';
   }
   onStep(e) {
@@ -519,6 +527,7 @@ export class Game {
   findScratch(wantFloor) {
     const pos = this.cat.pos, yaw = this.cat.yaw, fx = Math.sin(yaw), fz = Math.cos(yaw), S = CAT_S;
     let best = null, bd = 0.8;
+    const fl = this.world.floorY(pos.y), fy = pos.y - fl;
     for (const s of this.data.scratch) {
       if (s.type === 'post') {
         if (pos.y < s.y[0] - 0.1 || pos.y > s.y[1] - 0.45) continue;
@@ -528,7 +537,7 @@ export class Game {
           best = { type: 'post', name: s.name, surface: s.surface, x: s.p[0] - dx / d * st, z: s.p[1] - dz / d * st, yaw: Math.atan2(dx, dz) }; bd = d;
         }
       } else if (s.type === 'wall') {
-        if (pos.y > 0.1) continue;
+        if (fy > 0.1 || (s.y0 || 0) !== fl) continue;
         const along = s.axis === 'x' ? pos.z : pos.x, perp = ((s.axis === 'x' ? pos.x : pos.z) - s.at) * s.n;
         const facing = -(s.axis === 'x' ? fx : fz) * s.n;
         if (along < s.a[0] - 0.1 || along > s.a[1] + 0.1 || perp < 0 || perp > 0.65 || facing < 0.2 || perp > bd) continue;
@@ -538,7 +547,7 @@ export class Game {
       }
     }
     if (best || !wantFloor) return best;
-    if (pos.y < 0.05) for (const s of this.data.scratch)
+    if (pos.y - this.world.floorY(pos.y) < 0.05) for (const s of this.data.scratch) if ((s.y0 || 0) === this.world.floorY(pos.y))
       if (s.type === 'floor' && pos.x > s.b[0] && pos.x < s.b[1] && pos.z > s.b[2] && pos.z < s.b[3]) return { type: 'floor', name: s.name, surface: s.surface };
     return null;
   }
@@ -555,7 +564,7 @@ export class Game {
     if (sc) return { label: 'SCRATCH', kind: 'scratch', sc, hot: true };
     for (const it of this.items) {
       if (it.kind === 'food' || it.kind === 'water') {
-        if (Math.hypot(pos.x - it.stand[0], pos.z - it.stand[1]) < 0.6 && pos.y < 0.1) return { label: it.kind === 'food' ? 'EAT' : 'DRINK', kind: it.kind === 'food' ? 'eat' : 'drink', it, hot: true };
+        if (Math.hypot(pos.x - it.stand[0], pos.z - it.stand[1]) < 0.6 && Math.abs(pos.y - (it.p[1] - 0.06)) < 0.1) return { label: it.kind === 'food' ? 'EAT' : 'DRINK', kind: it.kind === 'food' ? 'eat' : 'drink', it, hot: true };
       }
       if (it.kind === 'faucet' && it.on && Math.hypot(pos.x - it.basin[0], pos.z - it.basin[2]) < 0.55 && Math.abs(pos.y - it.basin[1]) < 0.25) return { label: 'DRINK', kind: 'drink', hot: true, tap: it };
     }
@@ -564,7 +573,7 @@ export class Game {
         const nap = this.data.zones.find(n => n.kind === 'nap' && Math.hypot(pos.x - n.p[0], pos.z - n.p[2]) < n.r * 0.6 && Math.abs(pos.y - n.p[1]) < 0.15);
         if (!nap) return { label: 'KNEAD', kind: 'knead', hot: true };
       }
-      if (z.kind === 'litter' && pos.x > z.b[0] && pos.x < z.b[1] && pos.z > z.b[2] && pos.z < z.b[3]) return { label: 'DIG', kind: 'litter', hot: true };
+      if (z.kind === 'litter' && Math.abs(pos.y - (z.y0 || 0)) < 0.3 && pos.x > z.b[0] && pos.x < z.b[1] && pos.z > z.b[2] && pos.z < z.b[3]) return { label: 'DIG', kind: 'litter', hot: true };
     }
     const fl = this.findScratch(true);
     const cosy = this.napSpot();
@@ -578,7 +587,7 @@ export class Game {
       if (z.kind === 'nap' && Math.hypot(pos.x - z.p[0], pos.z - z.p[2]) < z.r && Math.abs(pos.y - z.p[1]) < 0.2) return { name: z.name };
       if (z.kind === 'box' && Math.hypot(pos.x - z.p[0], pos.z - z.p[2]) < z.r && Math.abs(pos.y - z.p[1]) < 0.1) return { name: z.name, box: true };
     }
-    for (const z of this.data.zones) if (z.kind === 'sun' && pos.y < 0.1 && pos.x > z.b[0] && pos.x < z.b[1] && pos.z > z.b[2] && pos.z < z.b[3]) return { name: z.name, sun: true };
+    for (const z of this.data.zones) if (z.kind === 'sun' && (z.y0 || 0) === this.world.floorY(pos.y) && pos.y - (z.y0 || 0) < 0.1 && pos.x > z.b[0] && pos.x < z.b[1] && pos.z > z.b[2] && pos.z < z.b[3]) return { name: z.name, sun: true };
     const sp = cat.ground && cat.ground.spot;
     if (sp && sp !== 'windowsill') return { name: sp, tub: sp === 'the bathtub' };
     if (sp === 'windowsill') return { name: 'a windowsill' };
@@ -665,10 +674,11 @@ export class Game {
         if (g.spot === 'the cardboard box' && (cat.sitW > 0.7 || cat.lieW > 0.5)) this.task('box');
       }
       if (g && g.spot === 'windowsill' && cat.idle > 1.5) { this.sillT += dt; if (this.sillT > 1.2) { this.sillT = -8; cat.meow('chatter'); this.task('birds'); this.discover('sill', 'Birds! So many birds.'); } } else if (this.sillT > 0) this.sillT = 0; else if (this.sillT < 0) this.sillT += dt;
-      for (const z of this.data.zones) if (z.kind === 'under' && pos.y < 0.05 && pos.x > z.b[0] && pos.x < z.b[1] && pos.z > z.b[2] && pos.z < z.b[3]) { this.task('under'); this.discover(z.name.includes('bed') ? 'under' : z.name, 'Found ' + z.name, 40); }
+      for (const z of this.data.zones) if (z.kind === 'under' && Math.abs(pos.y - (z.y0 || 0)) < 0.05 && pos.x > z.b[0] && pos.x < z.b[1] && pos.z > z.b[2] && pos.z < z.b[3]) { this.task('under'); this.discover(z.name.includes('bed') ? 'under' : z.name, 'Found ' + z.name, 40); }
     }
     // out and about
     const site = this.world.site;
+    if (site === 'colonial' && cat.pos.y > 5.5) this.task('attic');
     if (site !== this.lastSite) {
       this.lastSite = site;
       if (site === null) this.discover('outdoors', 'The great outdoors!', 30);

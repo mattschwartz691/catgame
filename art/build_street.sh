@@ -17,3 +17,4 @@ $PY /mnt/data/Games/Catgame/art/ktx_pack.py $W/scene.gltf
 $GT meshopt $W/scene.gltf $A/street.glb --level medium 2>&1 | grep -iE "^error" || true
 rm -rf $W
 ls -la $A
+python3 /mnt/data/Games/Catgame/art/manifest.py

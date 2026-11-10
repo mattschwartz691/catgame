@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Cat, COATS, angDiff, CAT_S } from './cat.js';
 import { loadCatAssets } from './catmodel.js';
-import { World, loadWorld } from './world.js';
+import { World, loadWorld, loadMore } from './world.js';
 import { Props } from './props.js';
 import { Input } from './input.js';
 import { Renderer, pickTier, TIERS } from './render.js';
@@ -21,14 +21,14 @@ const ui = new UI();
 const canvas = $('game');
 const R = new Renderer(canvas, pickTier());
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(50, 1, 0.06, 120);
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 130);
 scene.environment = R.envMap();
 scene.environmentIntensity = 0.5;
 
 ui.loading(0.05, 'Fluffing the cat…');
 const [catAssets, houseAssets] = await Promise.all([
   loadCatAssets(),
-  loadWorld(R.r, (l, t) => { ui.loading(0.1 + 0.75 * Math.min(1, l / t), 'Tidying the houses (not for long)…'); }),
+  loadWorld(R.r, (l, t) => { ui.loading(0.1 + 0.75 * Math.min(1, l / t), 'Tidying the house (not for long)…'); }),
 ]);
 ui.loading(0.9, 'Hiding the treats…');
 
@@ -43,6 +43,15 @@ const sp = world.data.spawn;
 cat.teleport(sp.x, 0, sp.z, sp.yaw);
 const input = new Input(canvas);
 const game = new Game({ scene, world, props, fx, cat, ui, input, camera });
+
+// the second house is big: fetch it in the background and keep the garden gate shut until it is there
+const gate = world.addBox({ minX: -1.2, maxX: 2.0, minY: 0, maxY: 2.6, minZ: 8.9, maxZ: 9.15, cam: false, fade: null, spot: null });
+let gateTold = 0;
+const moreReady = loadMore(R.r, { half: R.tierName !== 'high' }).then(list => {
+  for (const a of list) { world.addArea(a); props.addProps(a.data.props || []); fx.addShafts(a.data.windows || []); game.addArea(a.data); }
+  world.boxes.splice(world.boxes.indexOf(gate), 1);
+  if (state === 'play') ui.toast('The garden gate swings open', 'find');
+}).catch(e => { console.warn('second house failed to load', e); world.boxes.splice(world.boxes.indexOf(gate), 1); });
 
 // sky dome
 let sky;
@@ -167,8 +176,9 @@ function frame(now) {
   }
 
   // dynamic objects pick up the baked ambient level where they stand
-  world.update(cat.pos, dt);
-  ambS = damp(ambS, clamp(world.ambientAt(cat.pos.x, cat.pos.z) * 2.2 + 0.25, 0.3, 1.6), 4, dt);
+  world.update(cat.pos, dbg.every ? 1 : dt);
+  if (world.boxes.includes(gate) && state === 'play' && cat.pos.z > 8.4 && Math.abs(cat.pos.x - 0.4) < 1.6 && now - gateTold > 9000) { gateTold = now; ui.toast('The gate is stuck… (the neighbourhood is still unpacking)'); }
+  ambS = damp(ambS, clamp(world.ambientAt(cat.pos.x, cat.pos.z, cat.pos.y) * 2.2 + 0.25, 0.3, 1.6), 4, dt);
   for (const s of cat.model.shells) s.material.envMapIntensity = ambS;
 
   // ---- camera
@@ -202,10 +212,10 @@ function frame(now) {
   if (dbg.every) { liftS = bestLift; curDist = Math.min(wantD, clearD); }
   camera.position.copy(tgt).addScaledVector(dir, curDist);
   if (shake > 0.001) { camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake; shake *= Math.exp(-9 * dt); }
-  if (camera.position.y < 0.12) camera.position.y = 0.12;
+  { const cf = Math.min(world.floorY(cat.pos.y), world.baseY(camera.position.x, camera.position.z)) + 0.12; if (camera.position.y < cf) camera.position.y = cf; }
   camera.lookAt(tgt);
   sky.position.copy(camera.position);
-  world.camFade(tgt, camera.position, dt);
+  world.camFade(tgt, camera.position, dbg.every ? 1 : dt);
 
   game.frame(dt, t, state === 'play');
   if (!dbg.every) R.adapt(dt);
@@ -216,5 +226,5 @@ setState('menu');
 ui.loading(1, '');
 requestAnimationFrame(frame);
 
-window.__game = { cat, world, props, fx, game, input, camera, scene, R, setState, step, dbg, THREE, sfx,
+window.__game = { cat, world, props, fx, game, input, camera, scene, R, setState, step, dbg, THREE, sfx, moreReady,
   get state() { return state; }, set camYaw(v) { camYaw = v; }, get camYaw() { return camYaw; }, set camPitch(v) { camPitch = v; }, set camDist(v) { camDist = v; } };

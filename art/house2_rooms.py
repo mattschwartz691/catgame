@@ -11,6 +11,11 @@ ORIGIN = (24.0, -3.0)
 BOUNDS = [-3.5, 19.4, -8.0, 8.4]
 # footprint pieces (roofs over them keep the sun out; also "am I indoors here")
 ROOFS = [[0, 13.4, 0, 8.4], [-3.5, 0, 0, 3.7], [8.6, 13.4, -8.0, 0], [13.4, 19.4, -3.3, 2.2]]
+STOREY = 2.9
+LEVELS = [0.0, STOREY, 2 * STOREY, -STOREY]
+PITS = [[0, 13.4, 0, 8.4], [8.6, 13.4, -8.0, 0]]          # footprint of the basement
+PIT_Y = -STOREY
+HOLE = (6.37, 7.3, 3.65, 7.4)                              # stairwell
 SKY_STRENGTH = 0.03
 PREVIEW_EXPOSURE = 1.6
 SPAWN = dict(x=7.75, z=7.4, yaw=3.14)
@@ -46,17 +51,20 @@ def mats():
     M['btile'] = pbr('fl_b2tile', 'marble_mosaic_tiles', tile=0.8)
     M['terra'] = pbr('fl_terra', 'terracotta_floor_tiles', tile=1.2)
     M['conc'] = pbr('fl_garage', 'concrete_floor_02', tile=3.0)
-    M['w_living'] = pbr('w2_living', 'beige_wall_001', tile=2.5, tint=(0.82, 0.88, 0.8))          # sage
+    M['w_living'] = pbr('w2_living', 'white_plaster_02', tile=2.5, tint=(0.93, 0.92, 0.86))          # sage
     M['w_foyer'] = pbr('w2_foyer', 'white_plaster_02', tile=2.5, tint=(1.0, 0.97, 0.9))
-    M['w_dining'] = pbr('w2_dining', 'beige_wall_001', tile=2.5, tint=(0.95, 0.72, 0.62))         # terracotta
+    M['w_dining'] = pbr('w2_dining', 'white_plaster_02', tile=2.5, tint=(0.78, 0.83, 0.86))         # terracotta
     M['w_kitchen'] = pbr('w2_kitchen', 'white_plaster_02', tile=2.5, tint=(0.98, 0.96, 0.86))
-    M['w_family'] = pbr('w2_family', 'painted_plaster_wall', tile=2.5, tint=(0.78, 0.86, 0.95))  # pale blue
-    M['w_office'] = pbr('w2_office', 'beige_wall_001', tile=2.5, tint=(0.75, 0.78, 0.9))
-    M['w_bed'] = pbr('w2_bed', 'painted_plaster_wall', tile=2.5, tint=(0.95, 0.85, 0.9))
+    M['w_family'] = pbr('w2_family', 'white_plaster_02', tile=2.5, tint=(0.9, 0.9, 0.85))  # pale blue
+    M['w_office'] = pbr('w2_office', 'white_plaster_02', tile=2.5, tint=(0.78, 0.83, 0.8))
+    M['w_bed'] = pbr('w2_bed', 'white_plaster_02', tile=2.5, tint=(0.92, 0.89, 0.86))
     M['w_bath'] = pbr('w2_bath', 'square_tiles', tile=0.9, tint=(0.85, 0.95, 1.0))
     M['w_sun'] = pbr('w2_sun', 'white_plaster_02', tile=2.5, tint=(1.0, 0.98, 0.9))
     M['w_garage'] = pbr('w2_garage', 'white_plaster_02', tile=2.5, tint=(0.85, 0.85, 0.85))
-    M['ext'] = pbr('ext_clap', 'white_planks_clean', tile=1.6, nonormal=True)
+    M['ext'] = pbr('ext_clap', 'white_planks_clean', tile=1.6, tint=(0.62, 0.17, 0.14), nonormal=True)
+    M['w_up'] = pbr('w2_up', 'white_plaster_02', tile=2.5, tint=(0.95, 0.94, 0.9)); M['w_blue'] = pbr('w2_blue', 'white_plaster_02', tile=2.5, tint=(0.76, 0.83, 0.9)); M['w_green'] = pbr('w2_green', 'white_plaster_02', tile=2.5, tint=(0.82, 0.88, 0.8))
+    M['w_base'] = pbr('w2_base', 'white_plaster_02', tile=2.5, tint=(0.86, 0.86, 0.84)); M['carpet'] = pbr('fl_carpet', 'knitted_fleece', tile=0.9, tint=(0.82, 0.8, 0.74), nonormal=True)
+    M['carpet2'] = pbr('fl_carpet2', 'knitted_fleece', tile=0.9, tint=(0.62, 0.68, 0.76), nonormal=True)
     M['trim'] = flat('trim_white', hexc(0xF4F1EA), rough=0.45)
     M['ceil'] = flat('ceiling', hexc(0xF2F0EC), rough=0.9)
     M['brick'] = pbr('brick', 'red_brick_03', tile=1.2)
@@ -67,10 +75,15 @@ def mats():
 def floor(name, x0, x1, z0, z1, mat):
     return quad([(x0, 0, z1), (x1, 0, z1), (x1, 0, z0), (x0, 0, z0)], mat, name='floor_' + name)
 
+def hall_floor(name, z0, mat, z1=8.4, x1=8.6):
+    """Stair hall floor with the stairwell left open."""
+    floor(name + 'a', 6.3, x1, z0, HOLE[2], mat); floor(name + 'b', HOLE[1], x1, HOLE[2], z1, mat)
+    if z1 > HOLE[3]: floor(name + 'c', 6.3, HOLE[1], HOLE[3], z1, mat)
+
 def architecture():
     W = lambda *a, **k: wall(*a, H=H, T=T, base=M['trim'], trim=M['trim'], **k)
     D = 2.05; E = M['ext']
-    floor('living', 0, 6.3, 3.7, 8.4, M['oak']); floor('foyer', 6.3, 8.6, 1.7, 8.4, M['oak'])
+    floor('living', 0, 6.3, 3.7, 8.4, M['oak']); hall_floor('foyer', 1.7, M['oak'])
     floor('dining', 8.6, 13.4, 3.9, 8.4, M['oak']); floor('kitchen', 8.6, 13.4, 0, 3.9, M['ktile'])
     floor('family', 8.6, 13.4, -8.0, 0, M['oak2']); floor('office', 0, 3.4, 0, 3.7, M['oak2'])
     floor('bedroom', 3.4, 6.3, 0, 3.7, M['oak2']); floor('bath', 6.3, 8.6, 0, 1.7, M['btile'])
@@ -119,7 +132,7 @@ def architecture():
         c = box(x0 - 0.2, x1 + 0.2, H, H + 0.1, z0 - 0.2, z1 + 0.2, M['ceil'], bevel=0, collide=False, static=False, name='ceiling'); L.BAKE_ONLY.append(c)
     g = quad([(-30, -0.02, 30), (40, -0.02, 30), (40, -0.02, -30), (-30, -0.02, -30)], flat('bake_ground', hexc(0x6F8F4A), rough=0.9), name='ground', static=False); L.BAKE_ONLY.append(g)
     # the front door stands open
-    doorm = flat('door_red', hexc(0x8E2B25), rough=0.4)
+    doorm = flat('door_dark', hexc(0x1F2A26), rough=0.4)
     L.EXT.append(box(7.25, 7.3, 0, D + 0.03, 8.47, 9.38, doorm, bevel=0.01, collide=False, static=False, name='frontdoor'))
 
 def counter(x0, x1, z0, z1, face, cab, top, spot='the kitchen counter', h=0.9, doors=True):
@@ -163,34 +176,50 @@ def fireplace(xc, zw, d, name, brick=None):
     box(xc - 0.3, xc + 0.3, 0.03, 0.1, zl - 0.05, zl + 0.05, wood, bevel=0.03, segs=3, collide=False); box(xc - 0.25, xc + 0.25, 0.09, 0.15, zl - 0.03, zl + 0.07, ember, bevel=0.025, segs=3, collide=False)
     lamp_light(xc, 0.3, zw + d * 0.5, 22, color=(1.0, 0.55, 0.25), radius=0.12)
 
-def stairs():
-    """Up from the foyer along the living-room wall. Drawn as 11 real steps; collides as a fine ramp so paws can walk it."""
-    oak = pbr('stair_oak', 'oak_veneer_01', tile=1.0); white = M['trim']; run_col = flat('stair_runner', hexc(0x8A2E2A), rough=0.95)
-    x0, x1, zs = 6.37, 7.3, 7.3
-    n, rise, run = 11, 2.09 / 11, 0.26
+def flight(side=True):
+    """One straight flight from this storey to the next (rising toward -z along the west wall of the stair hall).
+    Collides as a fine ramp of thin treads, so the flight below keeps its headroom. side: banister + panelling on the open east side."""
+    oak = pbr('stair_oak', 'oak_veneer_01', tile=1.0); white = M['trim']; run_col = flat('stair_runner', hexc(0x39424E), rough=0.95)
+    x0, x1, zt, zs = HOLE
+    n = 15; rise = STOREY / n; run = (zs - zt) / n
     for i in range(n):
-        za, zb = zs - (i + 1) * run, zs - i * run
-        box(x0, x1, 0 if i == 0 else i * rise - 0.02, (i + 1) * rise - 0.03, za, zb, white, bevel=0.003, collide=False)
-        box(x0, x1 + 0.02, (i + 1) * rise - 0.03, (i + 1) * rise, za - 0.02, zb, oak, bevel=0.006, collide=False)
-        box(x0 + 0.2, x1 - 0.2, (i + 1) * rise, (i + 1) * rise + 0.006, za, zb, run_col, bevel=0, collide=False)
-    zt = zs - n * run
-    box(x0, x1, 0, 2.09, 3.78, zt, white, bevel=0.004, collide=False); box(x0, x1 + 0.02, 2.06, 2.09, 3.78, zt, oak, bevel=0.004, collide=False)
-    box(x0, x1, 0, 0.02, zt, zs, white, bevel=0, collide=False)
-    side = box(x1 - 0.02, x1, 0, 0.02, zt, zs, white, bevel=0, collide=False)
-    nn = 42; r = 2.09 / nn; rr = (zs - zt) / nn
-    for i in range(nn): collider(x0, x1, 0, (i + 1) * r, zs - (i + 1) * rr, zs - i * rr, step=True)
-    collider(x0, x1, 0, 2.09, 3.78, zt, spot='the top of the stairs')
-    # banister
-    for i in range(n + 1):
-        z = zs - i * run + 0.0; y = i * rise
-        cyl(x1 - 0.03, min(z, zs - 0.05), y, y + 0.85, 0.017, white, seg=8, collide=False, bevel=0)
+        za, zb = zs - (i + 1) * run, zs - i * run; y = (i + 1) * rise
+        box(x0, x1, y - rise, y - 0.03, za, za + 0.02, white, bevel=0, collide=False)
+        box(x0, x1 + 0.02, y - 0.035, y, za - 0.02, zb, oak, bevel=0.006, collide=False)
+        box(x0 + 0.2, x1 - 0.2, y, y + 0.005, za, zb, run_col, bevel=0, collide=False)
     import bmesh
-    bm = bmesh.new()
-    p = [(x1 - 0.06, 0.85, zs), (x1, 0.85, zs), (x1, 0.85 + 2.09, zt), (x1 - 0.06, 0.85 + 2.09, zt)]
-    vs = [bm.verts.new(B(*q)) for q in p] + [bm.verts.new(B(q[0], q[1] + 0.05, q[2])) for q in p]
-    for f in ((0, 1, 2, 3), (7, 6, 5, 4), (0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)): bm.faces.new([vs[i] for i in f])
-    bm.normal_update(); L._finish(bm, 'rail', oak)
-    cyl(x1 - 0.03, zs + 0.02, 0, 1.0, 0.045, oak, seg=12, collide=True)
+    def slope(xa, xb, ya, yb, name, mat):          # sloped board following the flight
+        bm = bmesh.new()
+        p = [(xa, ya, zs), (xb, ya, zs), (xb, ya + STOREY, zt), (xa, ya + STOREY, zt)]
+        vs = [bm.verts.new(B(*q)) for q in p] + [bm.verts.new(B(q[0], q[1] + (yb - ya), q[2])) for q in p]
+        for f in ((0, 1, 2, 3), (7, 6, 5, 4), (0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)): bm.faces.new([vs[i] for i in f])
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:]); return L._finish(bm, name, mat)
+    slope(x0, x1, -0.26, -0.2, 'soffit', white)
+    nn = 58; r = STOREY / nn; rr = (zs - zt) / nn
+    for i in range(nn): collider(x0, x1, (i + 1) * r - 0.22, (i + 1) * r, zs - (i + 1) * rr, zs - i * rr, step=True)
+    if side:
+        slope(x1 - 0.05, x1 + 0.01, 0.86, 0.92, 'rail', oak)
+        for i in range(n + 1):
+            z = zs - i * run; y = i * rise
+            cyl(x1 - 0.02, max(zt + 0.03, min(z, zs - 0.03)), y, y + 0.88, 0.016, white, seg=8, collide=False, bevel=0)
+        cyl(x1 - 0.02, zs + 0.03, 0, 1.02, 0.045, oak, seg=12, collide=True)
+        # panelled side below the treads, banister above: nothing to fall through
+        for flip in (False, True):
+            bm = bmesh.new(); q = ((x1, 0, zs), (x1, 0, zt), (x1, STOREY - 0.2, zt)); vs = [bm.verts.new(B(*v)) for v in (q[::-1] if flip else q)]; bm.faces.new(vs); bm.normal_update(); L._finish(bm, 'spandrel', white)
+        for i in range(n):
+            za, zb = zs - (i + 1) * run, zs - i * run; y = (i + 1) * rise
+            collider(x1 - 0.03, x1 + 0.03, 0, y + 0.95, za, zb, cam=False)
+
+def slabs():
+    """Floor plates between storeys (collision only; the visible floors are the rooms' own).
+    The strip a flight arrives on is a 'step', so the cat is not stopped by the plate's edge one tread early."""
+    x0, x1, z0, z1 = HOLE
+    main = [(-0.07, x0, -0.07, 8.47), (x1, 13.47, -0.07, 8.47), (x0, x1, z1, 8.47)]
+    for (a, b, c, d) in main + [(8.53, 13.47, -8.07, -0.07)]: collider(a, b, -0.3, 0, c, d, slab=True)
+    for (a, b, c, d) in main: collider(a, b, STOREY - 0.3, STOREY, c, d, slab=True)
+    for (a, b, c, d) in ((-0.07, x0, 1.93, 6.47), (x1, 13.47, 1.93, 6.47)): collider(a, b, 2 * STOREY - 0.3, 2 * STOREY, c, d, slab=True)
+    for (y, zn) in ((0, -0.07), (STOREY, -0.07), (2 * STOREY, 1.93)): collider(x0, x1, y - 0.3, y, zn, z0, slab=True, step=True)
+    collider(x0, x1, STOREY - 0.3, STOREY + 0.004, 2.9, z0, step=True, spot='the top of the stairs')
 
 def living():
     put('sofa_03', 2.6, 6.9, rot=180, collide=('seat', 0.54, 0.2, (0.76, 0.3)))
@@ -209,9 +238,9 @@ def living():
     put('fancy_picture_frame_02', 0.07 + 0.045, 4.3, rot=90, y=1.25, collide='none')
     put('hanging_picture_frame_02', 2.9, 8.4 - 0.07 - 0.02, rot=180, y=1.35, collide='none')
     floor_lamp(0.45, 6.3); table_lamp(0.4, 0.76, 7.9)
-    rug('c_living', 0.9, 4.4, 4.5, 6.4, [0x2F4A3A, 0xD9C7A0, 0x8A3B2E, 0xE5B45A], seed=21)
-    for a in ((0.9, 2.5), (3.8, 5.4)): curtain('z', 8.4 - 0.07, a[0], a[1], 2.15, -1, (0.5, 0.62, 0.45), 'c_living')
-    curtain('x', 0.07, 5.1, 7.0, 2.15, 1, (0.5, 0.62, 0.45), 'c_living')
+    rug('c_living', 0.9, 4.4, 4.5, 6.4, [0x34463C, 0xD9CDB0, 0x7A5A46, 0xBFA778], seed=21)
+    for a in ((0.9, 2.5), (3.8, 5.4)): curtain('z', 8.4 - 0.07, a[0], a[1], 2.15, -1, (0.8, 0.78, 0.7), 'c_living')
+    curtain('x', 0.07, 5.1, 7.0, 2.15, 1, (0.8, 0.78, 0.7), 'c_living')
     S['zones'].append(dict(kind='sun', b=[0.8, 2.8, 6.9, 8.2], name='the front-window sunbeam'))
     prop('mantel_clock_01', 4.6, 1.26, 3.95); prop('ceramic_vase_01', 3.95, 1.26, 3.97); prop('brass_vase_01', 5.3, 1.26, 3.97, scale=0.6); prop('standing_picture_frame_02', 5.0, 1.26, 3.95, rot=0)
     prop('marble_bust_01', 0.4, 0.77, 7.75, rot=90, scale=0.7)
@@ -223,20 +252,20 @@ def living():
         treat(*t)
 
 def foyer():
-    stairs()
+    flight()
     put('ClassicConsole_01', 8.6 - 0.07 - 0.3, 4.6, rot=270, collide=('table', 0.1))
     put('ornate_mirror_01', 8.6 - 0.07 - 0.014, 4.6, rot=270, y=1.3, scale=1.2, collide='none')
     put('painted_wooden_bench', 8.6 - 0.07 - 0.26, 7.75, rot=270, collide=('seat', 0.66, 0.15))
     put('hanging_picture_frame_01', 6.3 + 0.07 + 0.012, 2.75, rot=90, y=1.1, collide='none') if False else None
     put('hanging_picture_frame_03', 8.6 - 0.07 - 0.016, 1.98, rot=270, y=1.25, collide='none') if False else None
-    rug('c_foyer', 7.4, 8.3, 4.6, 7.9, [0x7A2E2A, 0x1F3D4F, 0xE8D3A8, 0xC98A3A], seed=23)
+    rug('c_foyer', 7.4, 8.3, 4.6, 7.9, [0x3A4A5A, 0xD8CDB8, 0x8A6A4A, 0xB8A888], seed=23)
     table_lamp(8.25, 0.95, 4.2)
     area_light(7.6, 2.55, 6.3, 0.9, 1.6, 95); area_light(7.4, 2.55, 2.8, 0.9, 1.2, 60)
     wall_shelf(8.6 - 0.07 - 0.22, 8.6 - 0.07, 1.75, 5.9, 6.9, spot='the foyer shelf') if False else None
     prop('rubber_boots#2', 8.1, 0, 8.05, rot=90); prop('rubber_boots#3', 8.12, 0, 7.3, rot=80)
     prop('ceramic_vase_04', 8.2, 0.95, 4.9); prop('standing_picture_frame_01', 8.25, 0.95, 4.5, rot=270); prop('binder_notebook#1', 8.2, 0.66, 7.6, rot=90)
-    prop('ball', 7.9, 0, 3.4, col=0xE8556A); prop('pingpong', 6.8, 2.09, 4.0)
-    for t in ((6.83, 2.09, 4.05), (6.83, 1.1, 5.9), (7.9, 0, 7.9), (8.25, 0.66, 7.9), (7.5, 0, 2.2), (8.2, 0.95, 4.3)):
+    prop('ball', 7.9, 0, 3.4, col=0xE8556A)
+    for t in ((6.83, 1.55, 5.4), (7.9, 0, 7.9), (8.25, 0.66, 7.9), (7.5, 0, 2.2), (8.2, 0.95, 4.3)):
         treat(*t)
 
 def dining():
@@ -253,7 +282,7 @@ def dining():
         a = k * math.pi / 3; x, z = 11.0 + math.cos(a) * 0.32, 6.15 + math.sin(a) * 0.32
         cyl(x, z, 1.98, 2.0, 0.035, brass, seg=10, collide=False, bevel=0); cyl(x, z, 2.0, 2.09, 0.014, glow, seg=8, collide=False, bevel=0)
     lamp_light(11.0, 1.9, 6.15, 110)
-    rug('c_dining', 9.4, 12.6, 4.9, 7.4, [0x1F3D4F, 0xE8D3A8, 0x7A2E2A, 0xC98A3A], seed=25)
+    rug('c_dining', 9.4, 12.6, 4.9, 7.4, [0x2C3E50, 0xDDD3BE, 0x7D5A50, 0xB79A6A], seed=25)
     curtain('z', 8.4 - 0.07, 9.8, 12.2, 2.15, -1, (0.85, 0.75, 0.55), 'c_dining'); curtain('x', 13.4 - 0.07, 5.3, 7.1, 2.15, -1, (0.85, 0.75, 0.55), 'c_dining')
     S['zones'].append(dict(kind='sun', b=[9.9, 12.1, 7.3, 8.25], name='the bay-window sunbeam'))
     prop('strawberry_chocolate_cake', 11.0, 0.88, 6.15); prop('brass_goblets#0', 10.4, 0.88, 5.9); prop('brass_goblets#1', 11.6, 0.88, 6.4); prop('brass_goblets#2', 10.5, 0.88, 6.5)
@@ -480,6 +509,12 @@ def deck():
 
 def build():
     mats(); HR.M.update(M)
-    architecture()
-    living(); foyer(); dining(); kitchen(); family(); office(); bedroom(); bath(); sunroom(); garage(); deck()
+    with L.level(0.0):
+        architecture()
+        living(); foyer(); dining(); kitchen(); family(); office(); bedroom(); bath(); sunroom(); garage(); deck()
+    import house2_levels as U
+    with L.level(STOREY): U.second()
+    with L.level(2 * STOREY): U.attic()
+    with L.level(-STOREY): U.basement()
+    slabs()
     S['nav'] = []

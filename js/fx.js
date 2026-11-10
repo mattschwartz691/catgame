@@ -180,17 +180,23 @@ export class FX {
       vertexShader: 'attribute float aT; attribute float aE; varying float vT; varying float vE; void main(){ vT = aT; vE = aE; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: 'uniform float uI; uniform vec3 uCol; varying float vT; varying float vE; void main(){ float a = (1.0 - vT) * (1.0 - vT) * smoothstep(0.0, 0.25, vE) * smoothstep(1.0, 0.75, vE); gl_FragColor = vec4(uCol * uI * a, 1.0); }',
     });
-    const dust = [];
-    for (const w of d.windows) {
+    this.shafts = []; this.shaftDust = [];
+    this.addShafts(d.windows);
+  }
+  addShafts(windows) {
+    const sun = this.world.sunDir, mat = this.shaftMat;
+    const dustBy = new Map();
+    for (const w of windows) {
       // outward normal of the wall this window sits in
       let nx = 0, nz = 0;
       if (!w.ext) continue;                                   // inner walls have no sun
       if (w.axis === 'x') nx = w.ext === 'neg' ? -1 : 1; else nz = w.ext === 'neg' ? -1 : 1;
       if (nx * sun.x + nz * sun.z < 0.15) continue;
+      const fl = this.world.floorY(w.y[0]);
       const pos = [], aT = [], aE = [], idx = [];
       const corners = [[w.a[0], w.y[0]], [w.a[1], w.y[0]], [w.a[1], w.y[1]], [w.a[0], w.y[1]]];
       const P = corners.map(([a, y]) => w.axis === 'x' ? new THREE.Vector3(w.at, y, a) : new THREE.Vector3(a, y, w.at));
-      const Q = P.map(p => { const t = p.y / sun.y; return new THREE.Vector3(p.x - sun.x * t, 0.02, p.z - sun.z * t); });
+      const Q = P.map(p => { const t = (p.y - fl) / sun.y; return new THREE.Vector3(p.x - sun.x * t, fl + 0.02, p.z - sun.z * t); });
       // two crossed sheets through the beam + the four sides, all very faint
       const quad = (a0, a1, b0, b1, e0, e1) => {
         const i = pos.length / 3;
@@ -205,15 +211,14 @@ export class FX {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aT', new THREE.Float32BufferAttribute(aT, 1)); g.setAttribute('aE', new THREE.Float32BufferAttribute(aE, 1));
       g.setIndex(idx);
-      const m = new THREE.Mesh(g, mat); m.renderOrder = 15; m.frustumCulled = false; this.scene.add(m);
+      const m = new THREE.Mesh(g, mat); m.renderOrder = 15; this.scene.add(m); m.userData.fl = fl; this.shafts.push(m);
       for (let i = 0; i < 46; i++) {       // dust motes inside this beam
         const u = Math.random(), v = Math.random(), t = Math.random() * 0.9;
         const p0 = mid(mid(P[0], P[1], u), mid(P[3], P[2], u), v), p1 = mid(mid(Q[0], Q[1], u), mid(Q[3], Q[2], u), v);
-        const p = mid(p0, p1, t); dust.push(p.x, p.y, p.z);
+        const p = mid(p0, p1, t); if (!dustBy.has(fl)) dustBy.set(fl, []); dustBy.get(fl).push(p.x, p.y, p.z);
       }
     }
-    const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.Float32BufferAttribute(dust, 3));
-    this.dustMat = new THREE.ShaderMaterial({
+    if (!this.dustMat) this.dustMat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uT: { value: 0 }, uPx: { value: 1 } },
       vertexShader: `uniform float uT; uniform float uPx; varying float vA;
         void main(){ vec3 p = position; float h = fract(sin(dot(position.xz, vec2(12.9898, 78.233))) * 43758.5453);
@@ -222,10 +227,15 @@ export class FX {
           vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = uPx * (2.2 + 3.0 * h) / max(0.5, -mv.z); }`,
       fragmentShader: 'varying float vA; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); gl_FragColor = vec4(vec3(1.0, 0.9, 0.7) * a * vA * 0.55, 1.0); }',
     });
-    const pts = new THREE.Points(dg, this.dustMat); pts.frustumCulled = false; pts.renderOrder = 16; this.scene.add(pts);
+    for (const [fl, dust] of dustBy) {
+      const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.Float32BufferAttribute(dust, 3));
+      const pts = new THREE.Points(dg, this.dustMat); pts.frustumCulled = false; pts.renderOrder = 16; this.scene.add(pts); pts.userData.fl = fl; this.shafts.push(pts);
+    }
   }
 
   update(dt, cat) {
+    const pf = this.world.floorY(cat.pos.y) + 0.01, cut = this.world.cut;
+    for (const m of this.shafts) m.visible = m.userData.fl < cut - 1;
     this.dustMat.uniforms.uT.value += dt; this.dustMat.uniforms.uPx.value = window.innerHeight * 0.0035;
     for (const q of this.parts) {
       if (q.life <= 0) continue;
@@ -233,7 +243,7 @@ export class FX {
       if (q.life <= 0) { q.m.visible = false; continue; }
       q.vel.y -= 9 * q.grav * dt;
       q.m.position.addScaledVector(q.vel, dt);
-      if (q.m.position.y < 0.01) { q.m.position.y = 0.01; q.vel.set(q.vel.x * 0.5, -q.vel.y * 0.3, q.vel.z * 0.5); }
+      if (q.m.position.y < pf) { q.m.position.y = pf; q.vel.set(q.vel.x * 0.5, -q.vel.y * 0.3, q.vel.z * 0.5); }
       q.m.rotation.x += dt * 6; q.m.rotation.y += dt * 4;
       q.m.scale.setScalar(q.size * Math.min(1, q.life / q.max * 2.5));
     }

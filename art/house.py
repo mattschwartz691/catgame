@@ -44,7 +44,7 @@ def render(name, pos, target, lens=24, res=(1280, 800), ortho=None, samples=48):
         cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam')); sc.collection.objects.link(cam); sc.camera = cam
     cam.data.type = 'ORTHO' if ortho else 'PERSP'
     if ortho: cam.data.ortho_scale = ortho
-    cam.data.lens = lens; cam.data.clip_start = 0.05
+    cam.data.lens = lens; cam.data.clip_start = 0.02
     cam.location = B(*pos)
     cam.rotation_euler = (B(*target) - cam.location).to_track_quat('-Z', 'Y').to_euler()
     sc.render.engine = 'CYCLES'; sc.cycles.samples = samples; sc.cycles.use_denoising = True
@@ -64,24 +64,29 @@ if MODE == 'preview':
         if v == 'top':
             b = R.BOUNDS; cx, cz = (b[0] + b[1]) / 2, (b[2] + b[3]) / 2
             render('house%s_top' % SFX, (cx, 40, cz + 0.01), (cx, 0, cz), ortho=max(b[1] - b[0], (b[3] - b[2]) * 1.45) + 1.5, res=(1600, 1120))
+        elif v.startswith('top@'):
+            y = float(v[4:]); b = R.BOUNDS; cx, cz = (b[0] + b[1]) / 2, (b[2] + b[3]) / 2
+            render('house%s_top_%s' % (SFX, v[4:].replace('-', 'm')), (cx, y + 2.58, cz + 0.01), (cx, y, cz), ortho=max(b[1] - b[0], (b[3] - b[2]) * 1.45) + 1.5, res=(1500, 1050), samples=32)
         elif v in R.VIEWS: render('house%s_%s' % (SFX, v), *R.VIEWS[v])
     log('preview done'); sys.exit(0)
 
 # ================================================================== bake + export
 texels = L.pack_lightmaps(LMRES, weight=R.lm_weight)
 # merge into the final export objects BEFORE baking (one scene sync per object makes many small bakes very slow)
-fades = {}; rest = []
+fades = {}; rest = {}; fadeY = {}
 for ob in L.STATIC:
-    k = ob.get('fade')
-    (fades.setdefault(k, []) if k else rest).append(ob)
+    k = ob.get('fade'); lv = float(ob.get('lv', 0.0))
+    if k: fades.setdefault(k, []).append(ob); fadeY[k] = lv
+    else: rest.setdefault(lv, []).append(ob)
 exp = [join(objs, 'fade_' + k) for k, objs in fades.items()]
-exp.append(join(rest, 'static'))
+exp += [join(objs, 'static_%d' % round(lv * 100)) for lv, objs in rest.items()]
 L.STATIC[:] = exp
 log('merged into %d objects' % len(exp))
 lm = L.bake_lightmap(LMRES, SAMPLES, sun, os.path.join(OUT, 'lightmap%s.npy' % SFX)) if MODE == 'bake' else np.load(os.path.join(OUT, 'lightmap%s.npy' % SFX))
 b = R.BOUNDS
-probes = L.bake_probes(b[0], b[1], b[2], b[3], 0.22, 0.25, max(64, SAMPLES), sun)
-np.save(os.path.join(OUT, 'probes%s.npy' % SFX), probes)
+LEVELS = getattr(R, 'LEVELS', [0.0])
+probes_all = [L.bake_probes(b[0], b[1], b[2], b[3], y + 0.22, 0.25, max(64, SAMPLES), sun) for y in LEVELS]
+probes = probes_all[0]
 log('lightmap stats: mean %.3f  p50 %.3f  p99 %.3f  max %.3f' % (lm.mean(), np.percentile(lm, 50), np.percentile(lm, 99), lm.max()))
 log('probe stats: mean %.3f max %.3f' % (probes.mean(), probes.max()))
 
@@ -92,13 +97,14 @@ img = bpy.data.images.new('LMOUT', LMRES, LMRES, alpha=False)
 img.pixels.foreach_set(np.concatenate([enc, np.ones((LMRES, LMRES, 1), dtype=np.float32)], -1).ravel())
 img.filepath_raw = os.path.join(OUT, 'lightmap%s.png' % SFX); img.file_format = 'PNG'; img.save()
 pr = probes[::-1].mean(-1)       # row 0 = north (z0)
+levels = [dict(y=y, v=[round(float(v), 3) for v in p[::-1].mean(-1).ravel()]) for y, p in zip(LEVELS, probes_all)]
 OX, OZ = getattr(R, 'ORIGIN', (0.0, 0.0))
 L.offset_data(S, OX, OZ)
 data = dict(S)
 SPAWN = dict(R.SPAWN); SPAWN['x'] += OX; SPAWN['z'] += OZ
 data.update(bounds=[R.BOUNDS[0] + OX, R.BOUNDS[1] + OX, R.BOUNDS[2] + OZ, R.BOUNDS[3] + OZ], site=SITE, roofs=[[r[0] + OX, r[1] + OX, r[2] + OZ, r[3] + OZ] for r in getattr(R, 'ROOFS', [R.BOUNDS])], sun=dict(dir=[float(v) for v in SUN_DIR], intensity=SUN_STRENGTH, color=list(SUN_COLOR)),
             lightmap=dict(max=LMAX, res=LMRES), probes=dict(cell=0.25, nx=int(pr.shape[1]), nz=int(pr.shape[0]), v=[round(float(v), 3) for v in pr.ravel()]),
-            spawn=SPAWN, wallH=R.H)
+            spawn=SPAWN, wallH=R.H, levels=levels, fadeY=fadeY, pits=[[r[0] + OX, r[1] + OX, r[2] + OZ, r[3] + OZ] for r in getattr(R, 'PITS', [])], pitY=getattr(R, 'PIT_Y', 0))
 json.dump(data, open(os.path.join(ASSETS, 'house.json'), 'w'))
 # ---- texture budgets (phones have little texture memory): colour maps only, detail maps where they earn their keep
 def tex_node(m, bs, sock):

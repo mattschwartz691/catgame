@@ -151,8 +151,10 @@ export class Props {
     this.list = [];
     this.emit = () => {};
     assets.props.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.material.envMapIntensity = 0.7; if (o.material.transparent) { o.material.alphaTest = 0.4; o.material.transparent = false; } } });
+    for (const m of new Set(Object.values(this.lib).flatMap(c => { const a = []; c.traverse(o => { if (o.isMesh) a.push(o.material); }); return a; }))) m.clippingPlanes = [world.clip];
     for (const p of world.data.props) this.spawn(p);
   }
+  addProps(list) { for (const p of list) this.spawn(p); }
 
   spawn(p) {
     const id = p.asset, scale = p.scale || 1;
@@ -249,7 +251,8 @@ export class Props {
       if (d.light) { p.vel.x += Math.sin(p.pos.y * 9 + p.pos.x * 5) * 2.5 * dt; p.vel.z += Math.cos(p.pos.y * 8) * 2.5 * dt; p.vel.multiplyScalar(Math.exp(-2.5 * dt)); }
       p.pos.addScaledVector(p.vel, dt);
       let ground = false, impact = 0;
-      if (p.pos.y < r) { impact = Math.max(impact, -p.vel.y); p.pos.y = r; p.vel.y = -p.vel.y > 1 ? -p.vel.y * d.bounce : 0; ground = true; }
+      const base = this.world.baseY(p.pos.x, p.pos.z);
+      if (p.pos.y < base + r) { impact = Math.max(impact, -p.vel.y); p.pos.y = base + r; p.vel.y = -p.vel.y > 1 ? -p.vel.y * d.bounce : 0; ground = true; }
       for (const b of boxes) {
         if (p.pos.x < b.minX - r || p.pos.x > b.maxX + r || p.pos.y < b.minY - r || p.pos.y > b.maxY + r || p.pos.z < b.minZ - r || p.pos.z > b.maxZ + r) continue;
         const qx = clamp(p.pos.x, b.minX, b.maxX), qy = clamp(p.pos.y, b.minY, b.maxY), qz = clamp(p.pos.z, b.minZ, b.maxZ);
@@ -297,7 +300,7 @@ export class Props {
         this.emit('impact', { p, impact });
         if (impact > 3 && !p.spilled && (d.spillBits || d.spill || d.splat)) { p.spilled = true; this.emit('spill', p); }
       }
-      if (!p.fallen && p.homeY > 0.3 && p.pos.y < p.homeY - 0.25) { p.fallen = true; this.emit('knocked', p); }
+      if (!p.fallen && p.homeY - this.world.floorY(p.homeY) > 0.3 && p.pos.y < p.homeY - 0.25) { p.fallen = true; this.emit('knocked', p); }
       if (ground && sp < 0.04 && Math.abs(p.vel.y) < 0.3) { p.still += dt; if (p.still > 0.6) { p.asleep = true; p.vel.set(0, 0, 0); } } else p.still = 0;
     }
   }

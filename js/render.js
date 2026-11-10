@@ -52,6 +52,7 @@ export class Renderer {
     this.canvas = canvas;
     this.tierName = tierName; this.tier = TIERS[tierName];
     const r = this.r = new THREE.WebGLRenderer({ canvas, antialias: !this.tier.post, powerPreference: 'high-performance', stencil: false });
+    r.localClippingEnabled = true;
     r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
     r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 0.95;
     r.outputColorSpace = THREE.SRGBColorSpace;

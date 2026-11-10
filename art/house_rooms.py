@@ -42,7 +42,7 @@ def mats():
     M['w_study'] = pbr('w_study', 'beige_wall_001', tile=2.5, tint=(0.72, 0.85, 0.74))
     M['w_bath'] = pbr('w_bath', 'long_white_tiles', tile=1.0)
     M['w_util'] = pbr('w_util', 'white_plaster_02', tile=2.5, tint=(0.98, 0.93, 0.82))
-    M['ext'] = pbr('ext_wall', 'plastered_wall_04', tile=3.0, tint=(1.0, 0.95, 0.86), nonormal=True)
+    M['ext'] = pbr('ext_clap_w', 'white_planks_clean', tile=1.6, tint=(0.93, 0.92, 0.88), nonormal=True)
     M['trim'] = flat('trim_white', hexc(0xF4F1EA), rough=0.45)
     M['ceil'] = flat('ceiling', hexc(0xF2F0EC), rough=0.9)
     M['grass'] = pbr('ext_grass', 'leafy_grass', tile=3.0, nonormal=True)
@@ -224,8 +224,10 @@ def curtain(axis, at, a0, a1, y1, d, col, name='curtain'):
         objs.append(o)
         S['scratch'].append(dict(type='wall', axis=axis, at=off + d * 0.05, n=d, a=[s0, s1], name='curtains', surface='fabric'))
     ob = join(objs, 'curtain'); L.STATIC.append(ob)
-    if axis == 'x': box(off - 0.012, off + 0.012, y1 + 0.13, y1 + 0.155, a0 - 0.3, a1 + 0.3, rodm, bevel=0.01, collide=False)
-    else: box(a0 - 0.3, a1 + 0.3, y1 + 0.13, y1 + 0.155, off - 0.012, off + 0.012, rodm, bevel=0.01, collide=False)
+    if axis == 'x': rod = box(off - 0.012, off + 0.012, y1 + 0.13, y1 + 0.155, a0 - 0.3, a1 + 0.3, rodm, bevel=0.01, collide=False)
+    else: rod = box(a0 - 0.3, a1 + 0.3, y1 + 0.13, y1 + 0.155, off - 0.012, off + 0.012, rodm, bevel=0.01, collide=False)
+    key = L.wall_key(axis, at, a0, a1)          # curtains fade away with the wall they hang on
+    if key: ob['fade'] = key; rod['fade'] = key
     return ob
 
 def bowl(x, z, col, fill):
@@ -529,31 +531,20 @@ def garden():
     """What you see through the windows: lawn, hedge, trees, flower beds. Lit by the real-time sun only."""
     import random
     rng = random.Random(5)
-    hedge = flat('ext_hedge', hexc(0x3F6B34), rough=0.95); leaf = flat('ext_leaf', hexc(0x4F8A3C), rough=0.9); leaf2 = flat('ext_leaf2', hexc(0x6FA24A), rough=0.9)
+    hedge = flat('ext_hedge', hexc(0x34512F), rough=0.95); leaf = flat('ext_leaf', hexc(0x4C6B3A), rough=0.95); leaf2 = flat('ext_leaf2', hexc(0x5E7F46), rough=0.95)
     bark = flat('ext_bark', hexc(0x5A4030), rough=0.95); fence = flat('ext_fence', hexc(0xF2EFE8), rough=0.7)
     path = pbr('ext_path', 'floor_pattern_02', tile=1.5, nonormal=True)
     # hedge all the way round
     for (x0, x1, z0, z1) in ((-15, 15, -12.6, -11.6), (-15, -0.9, 11.6, 12.6), (1.7, 15, 11.6, 12.6), (-15.6, -14.6, -12, 12), (14.6, 15.6, -12, 12)):
-        o = box(x0, x1, 0, 1.5, z0, z1, hedge, bevel=0.18, segs=3, collide=False, static=False, name='hedge'); L.EXT.append(o)
+        o = box(x0, x1, 0, 1.5, z0, z1, hedge, bevel=0.12, segs=4, collide=False, static=False, name='hedge'); L.EXT.append(o)
         collider(x0, x1, 0, 1.6, z0, z1)
-        n = int(max(x1 - x0, z1 - z0) / 1.1)
-        for i in range(n):
-            t = (i + 0.5) / n
-            L.blob(x0 + (x1 - x0) * t, 1.45 + rng.random() * 0.15, z0 + (z1 - z0) * t, 0.62, hedge, squash=0.7, seed=i)
-    # trees
-    for (x, z, h) in ((-11.5, 8.5, 3.4), (-12.5, -2.0, 4.0), (-4.0, 10.0, 3.0), (6.0, 10.2, 3.8), (12.0, 3.0, 4.2), (11.5, -7.0, 3.6), (0.5, -10.2, 3.9), (-9.0, -9.5, 3.2)):
-        o = cyl(x, z, 0, h * 0.62, 0.17, bark, r_top=0.11, seg=10, collide=False, static=False, name='trunk'); L.EXT.append(o)
-        collider(x - 0.16, x + 0.16, 0, 2.6, z - 0.16, z + 0.16)
-        for k in range(5):
-            a = rng.random() * 6.28; rr = 0.5 * rng.random()
-            L.blob(x + math.cos(a) * rr * 1.3, h * (0.72 + 0.2 * rng.random()), z + math.sin(a) * rr * 1.3, 0.85 + 0.45 * rng.random(), leaf if k % 2 else leaf2, squash=0.85, seed=k)
     # flower beds under the sunny windows
-    cols = [0xE8556A, 0xF2C14E, 0xFFFFFF, 0xB07FD9, 0xF29A6A]
+    cols = [0xF4F1EA, 0xE8DCA8, 0xFFFFFF, 0xB8A8CC, 0xF4F1EA]
     for (x0, x1, z0, z1) in ((-7.4, -1.6, 5.9, 6.6), (2.9, 5.7, 5.9, 6.6), (-8.9, -8.3, 0.8, 4.0)):
         for i in range(int((x1 - x0 + z1 - z0) * 4)):
             x = x0 + rng.random() * (x1 - x0); z = z0 + rng.random() * (z1 - z0)
             L.blob(x, 0.16 + rng.random() * 0.1, z, 0.2, leaf2 if i % 3 else leaf, squash=0.8, seed=i)
-            if i % 2 == 0: L.blob(x + 0.05, 0.36 + rng.random() * 0.12, z, 0.075, flat('ext_fl%06x' % cols[i % 5], hexc(cols[i % 5]), rough=0.6), squash=0.8, jitter=0.05, seed=i)
+            if i % 4 == 0: L.blob(x + 0.05, 0.36 + rng.random() * 0.12, z, 0.075, flat('ext_fl%06x' % cols[i % 5], hexc(cols[i % 5]), rough=0.6), squash=0.8, jitter=0.05, seed=i)
     # garden path from the front door
     o = quad([(-0.3, -0.01, 13.25), (1.1, -0.01, 13.25), (1.1, -0.01, 5.6), (-0.3, -0.01, 5.6)], path, name='path', static=False); L.EXT.append(o)
     # white picket fence beyond the south lawn
