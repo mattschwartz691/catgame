@@ -55,3 +55,7 @@ vendored PeerJS); the public PeerJS broker is used only to introduce them. The h
 over, carried or smashed, and treats found, are the same for everyone. Cats can bat each other (the other one
 hops back) and wash each other (the action button becomes GROOM when two cats are close). Score and to-do
 list stay personal.
+
+Two mini-games need friends (pink rings, first house): **Fish Scramble**, a 60-second race for fish in the
+living room, and **Balloon Keepy-Uppy** on the front lawn, where nobody may touch the balloon twice in a row.
+Whoever presses PLAY brings every connected cat to the start.

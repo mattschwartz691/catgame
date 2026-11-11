@@ -1,6 +1,8 @@
 // Five small games dotted around the world. Walk onto a glowing ring and press the orange button to play.
 //   Laser Chase (first house)  ·  Stalk the Sparrow (across the street)  ·  The Floor Is Lava (basement)
 //   Vole Patrol (back garden)  ·  Attic Bells (attic)
+// Two more need friends (Play together): Fish Scramble (first house, a race) and Balloon Keepy-Uppy
+// (front lawn, a team effort). Their rings are pink.
 import * as THREE from 'three';
 import { sfx } from './audio.js';
 
@@ -15,6 +17,8 @@ const STATIONS = {
   bird: { name: 'Stalk the Sparrow', area: 'home', pos: [29.0, 0, 22.6], range: 14, hint: 'Creep while it pecks. Freeze when it looks up. Then pounce.', task: ['mgBird', 3] },
   lava: { name: 'The Floor Is Lava', area: 'colonial', pos: [32.0, B0, 4.1], range: 9, hint: 'Hop the cushions, grab every fish, never touch the floor.', task: ['mgLava', 9] },
   voles: { name: 'Vole Patrol', area: 'colonial', pos: [25.8, 0, -6.6], range: 8, hint: 'Bop the voles. Leave the gnome alone. 40 seconds.', task: ['mgVoles', 15] },
+  scram: { name: 'Fish Scramble', area: 'home', pos: [-5.8, 0, -0.3], range: 10, multi: 'vs', hint: 'Race for the fish. Gold ones are worth 3. Batting a rival is fair play. 60 seconds.' },
+  balloon: { name: 'Balloon Keepy-Uppy', area: 'home', pos: [-0.8, 0, 8.1], range: 9, multi: 'coop', hint: 'Keep it off the grass. Nobody may touch it twice in a row: pass it on!' },
   bells: { name: 'Attic Bells', area: 'colonial', pos: [27.0, ATTIC, 2.4], range: 5, hint: 'Watch the bells, then paw them in the same order.', task: ['mgBells', 6] },
 };
 
@@ -33,8 +37,8 @@ export class Minigames {
     for (const [id, d] of Object.entries(STATIONS)) {
       if (d.area !== area) continue;
       const g = new THREE.Group(); g.position.set(d.pos[0], d.pos[1], d.pos[2]);
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.33, 0.42, 40), this.glow(0xffc94a, 0.75)); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02;
-      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.085), this.mat({ color: 0xffd76a, emissive: 0xffa520, emissiveIntensity: 1.2, roughness: 0.3, metalness: 0.4 })); gem.position.y = 0.8;
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.33, 0.42, 40), this.glow(d.multi ? 0xff7ad0 : 0xffc94a, 0.75)); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02;
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.085), this.mat(d.multi ? { color: 0xff9ad8, emissive: 0xff3aa8, emissiveIntensity: 1.2, roughness: 0.3, metalness: 0.4 } : { color: 0xffd76a, emissive: 0xffa520, emissiveIntensity: 1.2, roughness: 0.3, metalness: 0.4 })); gem.position.y = 0.8;
       g.add(ring, gem); this.scene.add(g);
       const st = { id, ...d, g, ring, gem };
       this.stations.push(st);
@@ -51,7 +55,38 @@ export class Minigames {
     for (const st of this.stations) if (Math.hypot(p.x - st.pos[0], p.z - st.pos[2]) < 0.85 && Math.abs(p.y - st.pos[1]) < 0.5) return { label: 'PLAY', kind: 'mini', st, hot: true };
     return null;
   }
-  act(c) { if (c.quit) this.finish(false, 'Stopped'); else if (c.st) this.start(c.st); }
+  act(c) {
+    if (c.quit) return this.finish(false, 'Stopped');
+    if (!c.st) return;
+    if (!c.st.multi) return this.start(c.st);
+    const net = this.g.net;
+    if (!net || !net.others.size) return this.ui.toast('This one needs a friend: tap Play together in the menu');
+    net.send({ k: 'mg', id: net.id, g: c.st.id });
+    this.startMulti(c.st, net.id);
+  }
+  // everyone connected is whisked to the start, whoever pressed the button is the referee
+  startMulti(st, ref) {
+    const net = this.g.net;
+    if (this.active) this.finish(false, 'Stopped');
+    this.pendingMulti = { ref, ids: [net.id, ...net.others.keys()].sort() };
+    this.start(st);
+  }
+  who(id) { const net = this.g.net; if (id === net.id) return 'You'; const o = net.others.get(id); return o ? o.coat.name : 'A cat'; }
+  // messages from the other players
+  netEvent(d) {
+    const net = this.g.net, a = this.active;
+    if (d.k === 'mg') { const st = this.stations.find(s => s.id === d.g && s.multi);
+      if (a && a.st.multi && a.isRef && a.st.id === d.g && a.phase === 'intro' && net.id < d.id) return;        // both pressed PLAY at once: one referee is enough
+      if (st && net.others.has(d.id)) { this.ui.toast(this.who(d.id) + ' started ' + st.name, 'find'); this.startMulti(st, d.id); } return; }
+    if (!a || !a.st.multi) return;
+    if (d.k === 'mgq') {
+      if (!a.players.has(d.id)) return;
+      a.players.delete(d.id); this.ui.toast(this.who(d.id) + ' left the game');
+      if (d.id === a.ref || a.players.size < 2) { a.over = true; this.finish(true, 'The game ended'); }
+      return;
+    }
+    const fn = this['net_' + a.st.id]; if (fn) fn.call(this, a, d);
+  }
   onPaw(e, pounce) {
     const a = this.active; if (!a || a.phase !== 'run') return 0;
     const fn = this['paw_' + a.st.id]; return fn ? (fn.call(this, a, e.point, pounce) ? 1 : 0) : 0;
@@ -59,6 +94,7 @@ export class Minigames {
   start(st) {
     if (this.active) return;
     const a = this.active = { st, t: 0, score: 0, phase: 'intro', objs: [], boxes: [] };
+    if (st.multi) { const m = this.pendingMulti, net = this.g.net; a.ref = m.ref; a.me = net.id; a.isRef = m.ref === net.id; a.slot = Math.max(0, m.ids.indexOf(net.id)); a.players = new Map(m.ids.map(id => [id, { score: 0 }])); }
     this.ui.banner('Mini-game', st.name, st.hint); sfx.unlock();
     this['init_' + st.id](a);
     this.hud(a);
@@ -66,14 +102,16 @@ export class Minigames {
   finish(done, why) {
     const a = this.active; if (!a) return;
     this.active = null;
+    if (a.st.multi && !a.over && this.g.net) this.g.net.send({ k: 'mgq', id: this.g.net.id });
+    this.cat.lookAt = null;
     for (const o of a.objs) this.scene.remove(o);
     for (const b of a.boxes) this.unbox(b);
     if (this['end_' + a.st.id]) this['end_' + a.st.id](a);
     const id = a.st.id, best = this.best[id] || 0, score = a.score;
     if (score > best) { this.best[id] = score; try { localStorage.setItem(KEY, JSON.stringify(this.best)); } catch {} }
-    this.ui.banner(why || (done ? 'Finished' : 'Game over'), `${a.st.name}: ${score}`, score > best && score > 0 ? 'A new best!' : `Best ${Math.max(best, score)}`);
+    this.ui.banner(why || (done ? 'Finished' : 'Game over'), a.result || `${a.st.name}: ${score}`, score > best && score > 0 ? 'A new best!' : `Best ${Math.max(best, score)}`);
     if (score > 0) { sfx.taskDone(); this.g.score += score * 5; this.ui.setScore(this.g.score); }
-    this.g.task(a.st.task[0], score, true);
+    if (a.st.task) this.g.task(a.st.task[0], score, true);
     this.ui.setMini(null);
     this.g.save();
   }
@@ -91,8 +129,123 @@ export class Minigames {
     a.t += dt;
     const p = this.cat.pos;
     if (Math.hypot(p.x - a.st.pos[0], p.z - a.st.pos[2]) > a.st.range || Math.abs(p.y - a.st.pos[1]) > 2.4) return this.finish(false, 'Wandered off');
+    if (a.st.multi && !a.over) { const net = this.g.net; for (const id of [...a.players.keys()]) if (id !== a.me && !net.others.has(id)) this.netEvent({ k: 'mgq', id }); if (this.active !== a) return; }
     if (a.phase === 'intro') { if (a.t > 1.8) { a.phase = 'run'; a.t = 0; sfx.pop(); } else return; }
     this['run_' + a.st.id](a, dt, t);
+  }
+
+  // ============================================================ 6. Fish Scramble (first house; a race between friends)
+  // The referee (whoever started it) puts the fish out and settles who got each one first.
+  init_scram(a) {
+    a.spots = [[-3.3, 3.3], [-1.9, 2.6], [-2.0, 4.4], [-3.6, 4.8], [-5.2, 3.6], [-6.5, 2.2], [-2.9, -0.4], [-2.9, 2.3], [-6.2, 4.1], [-7.2, 3.0], [-5.6, 2.6], [-1.6, 0.2], [-4.4, 2.8]];
+    a.time = 60; a.fish = new Map(); a.next = 0; a.spawnT = 0;
+    a.mats = [this.mat({ color: 0x9fd4ff, emissive: 0x3a9aff, emissiveIntensity: 0.9, roughness: 0.35, metalness: 0.3 }), this.mat({ color: 0xffc04a, emissive: 0xff9a1a, emissiveIntensity: 1.3, roughness: 0.3, metalness: 0.4 })];
+    const s = [[-5.8, -0.3], [-5.2, -0.3], [-5.8, 0.3], [-5.2, 0.3]][a.slot % 4]; this.cat.teleport(s[0], 0, s[1], 0.6);
+  }
+  scramAdd(a, i, x, z, gold) {
+    if (a.fish.has(i)) return;
+    const m = new THREE.Mesh(new THREE.OctahedronGeometry(gold ? 0.085 : 0.065), a.mats[gold ? 1 : 0]); m.scale.set(1.5, 0.8, 0.5); m.position.set(x, 0.22, z);
+    this.scene.add(m); a.objs.push(m); a.fish.set(i, { m, gold, ask: -9 });
+  }
+  scramAward(a, i, by) {
+    const f = a.fish.get(i); if (!f) return;
+    a.fish.delete(i); this.scene.remove(f.m);
+    const pl = a.players.get(by); if (pl) pl.score += f.gold ? 3 : 1;
+    this.fx.burst(f.m.position, f.gold ? 14 : 7, f.gold ? [0xffd27a, 0xffffff] : [0x9fd4ff, 0xffffff], { speed: 1.3, size: 0.016, life: 0.6 });
+    if (by === a.me) { a.score = pl.score; sfx.collect({ n: a.score }); if (f.gold) this.ui.toast('+3 gold fish!'); } else sfx.pop();
+  }
+  scramEnd(a, sc) {
+    for (const [id, v] of Object.entries(sc || {})) { const pl = a.players.get(id); if (pl && Number.isFinite(v)) pl.score = v; }
+    const rows = [...a.players.entries()].sort((x, y) => y[1].score - x[1].score), top = rows[0][1].score;
+    const win = rows.filter(r => r[1].score === top).map(r => r[0]);
+    a.score = a.players.get(a.me) ? a.players.get(a.me).score : 0;
+    a.result = rows.map(([id, v]) => `${this.who(id)} ${v.score}`).join('  ·  ');
+    a.over = true; this.finish(true, win.length > 1 ? 'A tie!' : win[0] === a.me ? 'You win!' : this.who(win[0]) + ' wins');
+  }
+  run_scram(a, dt, t) {
+    const net = this.g.net, p = this.cat.pos, left = a.time - a.t;
+    if (a.isRef) {
+      a.spawnT -= dt;
+      if (a.fish.size < 5 && a.spawnT <= 0) {
+        const cats = [p, ...[...net.others.values()].map(o => o.cat.pos)];
+        const free = a.spots.filter(s => cats.every(c => Math.hypot(c.x - s[0], c.z - s[1]) > 1.1) && [...a.fish.values()].every(f => Math.hypot(f.m.position.x - s[0], f.m.position.z - s[1]) > 0.7));
+        if (free.length) { const s = pick(free), i = a.next++, g = Math.random() < 0.18 ? 1 : 0, x = s[0] + rnd(-0.15, 0.15), z = s[1] + rnd(-0.15, 0.15); net.send({ k: 'msf', id: a.me, i, x, z, g }); this.scramAdd(a, i, x, z, g); }
+        a.spawnT = a.fish.size < 3 ? 0.15 : 0.7;
+      }
+      if (left <= 0) { const sc = {}; for (const [id, v] of a.players) sc[id] = v.score; net.send({ k: 'men', id: a.me, sc }); return this.scramEnd(a, sc); }
+    } else if (left < -4) return this.scramEnd(a, null);
+    for (const [i, f] of a.fish) {
+      f.m.rotation.y = t * 2.4 + i; f.m.position.y = 0.22 + Math.sin(t * 3 + i) * 0.03;
+      if (Math.hypot(p.x - f.m.position.x, p.z - f.m.position.z) < 0.4 && p.y < 0.6 && t - f.ask > 0.5) {
+        if (a.isRef) { net.send({ k: 'mgt', id: a.me, i, by: a.me }); this.scramAward(a, i, a.me); }
+        else { f.ask = t; net.send({ k: 'mcl', id: a.me, i }); }
+      }
+    }
+    const others = [...a.players.entries()].filter(([id]) => id !== a.me).map(([id, v]) => `${this.who(id)} ${v.score}`).join(' · ');
+    this.hud(a, `You ${a.players.get(a.me).score}  ·  ${others}`, Math.max(0, left) / a.time);
+  }
+  net_scram(a, d) {
+    const net = this.g.net;
+    if (d.k === 'msf' && d.id === a.ref && Number.isInteger(d.i) && Number.isFinite(d.x) && Number.isFinite(d.z)) this.scramAdd(a, d.i, d.x, d.z, !!d.g);
+    else if (d.k === 'mcl' && a.isRef && a.fish.has(d.i) && a.players.has(d.id)) { net.send({ k: 'mgt', id: a.me, i: d.i, by: d.id }); this.scramAward(a, d.i, d.id); }
+    else if (d.k === 'mgt' && d.id === a.ref) this.scramAward(a, d.i, d.by);
+    else if (d.k === 'men' && d.id === a.ref && d.sc && typeof d.sc === 'object') this.scramEnd(a, d.sc);
+  }
+
+  // ============================================================ 7. Balloon Keepy-Uppy (front lawn; everyone on the same side)
+  // Whoever touches the balloon decides where it goes next and tells the others; in between, every
+  // player's game lets it drift down the same way.
+  init_balloon(a) {
+    const c = a.st.pos, g = new THREE.Group();
+    const skin = this.mat({ color: 0xe8443a, roughness: 0.25, metalness: 0.05, emissive: 0x5a0a08, emissiveIntensity: 0.6 });
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 16), skin); ball.scale.set(1, 1.16, 1); ball.castShadow = true;
+    const knot = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.05, 8), skin); knot.position.y = -0.25;
+    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.4, 4), this.mat({ color: 0xf2f2f2 })); cord.position.y = -0.47;
+    g.add(ball, knot, cord); this.scene.add(g); a.objs.push(g);
+    const spot = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.22, 28), this.glow(0xffffff, 0.7)); spot.rotation.x = -Math.PI / 2; this.scene.add(spot); a.objs.push(spot);
+    Object.assign(a, { ball: g, skin, spot, bp: new THREE.Vector3(c[0], 1.7, c[2] + 1.2), bv: new THREE.Vector3(), n: 0, last: null, grace: 0, box: [-4.6, 3.2, 7.3, 11.5] });
+    const k = a.slot * 2.1 + 0.4; this.cat.teleport(c[0] + Math.sin(k) * 1.3, 0, c[2] + 1.2 + Math.cos(k) * 1.3, k + Math.PI);
+  }
+  balloonBop(a, dx, dz) {
+    const l = Math.hypot(dx, dz) || 1, ang = Math.atan2(dx / l, dz / l) + rnd(-0.6, 0.6), s = rnd(1.5, 2.4);
+    a.n++; a.last = a.me; a.score = a.n; a.grace = 0;
+    a.bp.y = Math.max(a.bp.y, 0.35); a.bv.set(Math.sin(ang) * s, 2.5, Math.cos(ang) * s);
+    sfx.piano({ note: [0, 4, 7, 12, 16][a.n % 5], vol: 0.6 }); sfx.bap();
+    this.g.net.send({ k: 'mbb', id: a.me, n: a.n, p: a.bp.toArray(), v: a.bv.toArray() });
+  }
+  balloonPop(a) {
+    this.fx.burst(a.bp, 26, [0xe8443a, 0xffb0a8, 0xffffff], { speed: 2.6, up: 1, size: 0.022, life: 0.7 }); sfx.pop(); sfx.error();
+    a.score = a.n; a.result = `${a.n} in a row, together`; a.over = true; this.finish(true, 'Pop!');
+  }
+  run_balloon(a, dt, t) {
+    const p = this.cat.pos, bp = a.bp, bv = a.bv, B = a.box;
+    bv.y -= 1.5 * (1 + a.n * 0.03) * dt; bv.y = Math.max(bv.y, -(0.7 + a.n * 0.02));
+    const f = Math.exp(-0.9 * dt); bv.x *= f; bv.z *= f;
+    bp.addScaledVector(bv, dt);
+    if (bp.x < B[0]) { bp.x = B[0]; bv.x = Math.abs(bv.x); } if (bp.x > B[1]) { bp.x = B[1]; bv.x = -Math.abs(bv.x); }
+    if (bp.z < B[2]) { bp.z = B[2]; bv.z = Math.abs(bv.z); } if (bp.z > B[3]) { bp.z = B[3]; bv.z = -Math.abs(bv.z); }
+    if (bp.y > 2.3) { bp.y = 2.3; bv.y = Math.min(bv.y, 0); }
+    if (bp.y <= 0.22) {          // resting on the grass: a moment's grace for a pass that is already on its way
+      bp.y = 0.22; bv.set(0, 0, 0); a.grace += dt;
+      if (a.grace > 0.5) { this.g.net.send({ k: 'mbo', id: a.me, n: a.n }); return this.balloonPop(a); }
+    }
+    const mine = a.last !== a.me;
+    if (mine && a.grace < 0.5 && Math.hypot(p.x - bp.x, p.z - bp.z) < 0.34 && Math.abs(p.y + 0.2 - bp.y) < 0.36) this.balloonBop(a, bp.x - p.x || Math.sin(this.cat.yaw), bp.z - p.z || Math.cos(this.cat.yaw));
+    a.ball.position.copy(bp); a.ball.rotation.z = Math.sin(t * 2.2) * 0.12 + bv.x * 0.1; a.ball.rotation.x = bv.z * 0.1;
+    a.skin.color.set(mine ? 0xe8443a : 0x9a8f8c); a.skin.emissiveIntensity = mine ? 0.6 : 0.1;
+    a.spot.position.set(bp.x, 0.02, bp.z); a.spot.scale.setScalar(0.7 + bp.y * 0.6); a.spot.material.opacity = mine ? 0.75 : 0.25;
+    this.cat.lookAt = bp;
+    this.hud(a, `${a.n} in a row  ·  ${a.n === 0 ? 'Anyone: bump it!' : mine ? 'Your turn!' : 'Pass it on…'}`, 1);
+  }
+  paw_balloon(a, p, pounce) {
+    if (a.last === a.me || Math.hypot(p.x - a.bp.x, p.z - a.bp.z) > 0.5 || Math.abs(p.y - a.bp.y) > 0.6) return false;
+    this.balloonBop(a, Math.sin(this.cat.yaw), Math.cos(this.cat.yaw)); return true;
+  }
+  net_balloon(a, d) {
+    const num = v => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+    if (d.k === 'mbb' && num(d.p) && num(d.v) && Number.isInteger(d.n) && (d.n > a.n || (d.n === a.n && d.id < a.last))) {
+      a.n = d.n; a.last = d.id; a.score = a.n; a.grace = 0; a.bp.fromArray(d.p); a.bv.fromArray(d.v); sfx.piano({ note: [0, 4, 7, 12, 16][a.n % 5], vol: 0.45 });
+    } else if (d.k === 'mbo' && d.n >= a.n) this.balloonPop(a);
   }
 
   // ============================================================ 1. Laser Chase (first house, living room)

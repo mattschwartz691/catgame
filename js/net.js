@@ -169,6 +169,7 @@ export class Net {
       case 'paw': if (num(d.p) && d.p.length === 3 && num(d.f)) this.game.pawItems({ point: new THREE.Vector3(...d.p), fx: d.f[0], fz: d.f[1], side: d.s || 0, remote: true }); break;
       case 'tr': if (num(d.l)) for (const i of d.l.slice(0, 5000)) this.game.remoteTreat(i); break;
       case 'pr': if (Array.isArray(d.l)) for (const s of d.l.slice(0, 80)) if (num(s) && s.length === 12) this.applyProp(s, d.id); break;
+      case 'mg': case 'mgq': case 'msf': case 'mcl': case 'mgt': case 'men': case 'mbb': case 'mbo': this.game.mini.netEvent(d); break;
       case 'snap': {
         if (this.mode !== 'guest' || !Array.isArray(d.l)) return;
         if (d.first || !this.snap) this.snap = new Set();
