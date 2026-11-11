@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 
 export class UI {
   constructor() {
-    this.onPick = this.onPlay = this.onMenu = this.onMusic = this.onSound = this.onQuality = this.onReset = this.onTasksOpen = () => {};
+    this.onPick = this.onPlay = this.onMenu = this.onMusic = this.onSound = this.onQuality = this.onReset = this.onTasksOpen = this.onHost = this.onJoin = this.onLeave = () => {};
     this.tasksOpen = false; this.state = 'load';
     $('play').addEventListener('click', () => this.onPlay());
     // pointerdown, not click: these must work while another finger is holding the stick
@@ -16,7 +16,27 @@ export class UI {
     $('optSound').addEventListener('click', () => this.onSound());
     $('optQuality').addEventListener('click', () => this.onQuality());
     $('optReset').addEventListener('click', () => { if (confirm('Start over? This clears your to-do list, treats and score.')) this.onReset(); });
+    $('optTogether').addEventListener('click', () => $('mp').classList.toggle('hidden'));
+    $('mpHost').addEventListener('click', () => this.onHost());
+    const join = () => { $('mpCode').blur(); this.onJoin($('mpCode').value); };
+    $('mpJoin').addEventListener('click', join);
+    $('mpCode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') join(); });
+    $('mpCode').addEventListener('input', () => { $('mpCode').value = $('mpCode').value.toUpperCase().replace(/[^A-Z]/g, ''); });
+    $('mpLeave').addEventListener('click', () => this.onLeave());
     this.tipT = 0;
+  }
+
+  // the "play together" box in the menu
+  setNet(n) {
+    const on = n.mode === 'host' || n.mode === 'guest';
+    $('mpSetup').classList.toggle('hidden', n.mode !== 'off');
+    $('mpLeave').classList.toggle('hidden', !on);
+    $('optTogether').textContent = on ? `Playing together · ${n.count} cat${n.count > 1 ? 's' : ''}` : 'Play together';
+    const st = $('mpStatus'); st.textContent = '';
+    if (n.mode === 'host') { const b = document.createElement('b'); b.textContent = n.code; st.append('Your code is ', b, n.count > 1 ? `. ${n.count} cats are here.` : '. A friend opens the game, taps Play together, and joins with it.'); }
+    else if (n.mode === 'guest') st.textContent = `Joined ${n.code}. ${n.count} cats are here. Press Play.`;
+    else st.textContent = n.status || '';
+    if (on) $('mp').classList.remove('hidden');
   }
 
   loading(p, msg) {

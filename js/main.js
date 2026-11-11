@@ -8,6 +8,7 @@ import { Renderer, pickTier, TIERS } from './render.js';
 import { FX } from './fx.js';
 import { Game } from './game.js';
 import { UI } from './ui.js';
+import { Net } from './net.js';
 import { initAudio, sfx, loops, music, setSfxOn, setMusicOn, suspendAudio, resumeAudio } from './audio.js';
 
 const $ = id => document.getElementById(id);
@@ -43,6 +44,10 @@ const sp = world.data.spawn;
 cat.teleport(sp.x, 0, sp.z, sp.yaw);
 const input = new Input(canvas);
 const game = new Game({ scene, world, props, fx, cat, ui, input, camera });
+const net = new Net({ scene, world, cat, catAssets, props, ui, sfx });
+net.setShells(R.tier.shells / 2);
+net.onChange = () => ui.setNet(net);
+ui.onHost = () => { initAudio(); net.host(); }; ui.onJoin = (code) => { initAudio(); net.join(code); }; ui.onLeave = () => net.leave();
 
 // the second house is big: fetch it in the background and keep the garden gate shut until it is there
 const gate = world.addBox({ minX: -16, maxX: 16, minY: 0, maxY: 2.6, minZ: 12.4, maxZ: 12.7, cam: false, fade: null, spot: null });
@@ -79,7 +84,7 @@ let sky;
 scene.fog = new THREE.Fog(0xdfe8f0, 45, 115);
 
 R.setup(scene, camera);
-R.onTier = (t) => { cat.model.setShells(t.shells); world.sun.shadow.mapSize.set(t.shadow, t.shadow); if (world.sun.shadow.map) { world.sun.shadow.map.dispose(); world.sun.shadow.map = null; } };
+R.onTier = (t) => { cat.model.setShells(t.shells); net.setShells(t.shells / 2); world.sun.shadow.mapSize.set(t.shadow, t.shadow); if (world.sun.shadow.map) { world.sun.shadow.map.dispose(); world.sun.shadow.map = null; } };
 
 // ------------------------------------------------------------------ state + camera
 let state = 'menu';
@@ -151,6 +156,7 @@ function step(dt) {
   }
   game.preStep(dt);
   cat.update(dt, ctl, world);
+  net.local(ctl); net.step(dt);
   props.update(dt, cat);
   game.step(dt, state === 'play');
   fx.update(dt, cat);
@@ -226,6 +232,7 @@ function frame(now) {
   // the sun does not move: on lighter tiers refresh its shadow map every other frame
   frameNo++; world.sun.shadow.autoUpdate = false; if (R.tierName === 'high' || frameNo % (R.tierName === 'lowest' ? 3 : 2) === 0) world.sun.shadow.needsUpdate = true;
   game.frame(dt, t, state === 'play');
+  net.frame(dt);
   if (!dbg.every) R.adapt(dt);
   R.render(t, game.fade);
 }
@@ -236,5 +243,5 @@ requestAnimationFrame(frame);
 
 if (new URLSearchParams(location.search).get('bench')) setTimeout(() => { ui.onPlay(); import('./bench.js').then(m => m.runBench(window.__game)); }, 2500);
 
-window.__game = { cat, world, props, fx, game, input, camera, scene, R, setState, step, dbg, THREE, sfx, moreReady,
+window.__game = { net, cat, world, props, fx, game, input, camera, scene, R, setState, step, dbg, THREE, sfx, moreReady,
   get state() { return state; }, set camYaw(v) { camYaw = v; }, get camYaw() { return camYaw; }, set camPitch(v) { camPitch = v; }, set camDist(v) { camDist = v; } };

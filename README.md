@@ -46,3 +46,10 @@ adapts to frame rate.
 
 Furniture, props and material textures come from [Poly Haven](https://polyhaven.com) (CC0).
 three.js is MIT licensed. Sound and music are synthesised in the browser.
+
+## Playing together
+
+"Play together" in the menu links up to four players so they see each other's cats. One starts a game and
+gets a four-letter code; the others join with it. The browsers talk directly over WebRTC (`js/net.js`,
+vendored PeerJS); the public PeerJS broker is used only to introduce them. Only the cats are shared: each
+player keeps their own house, treats and to-do list.

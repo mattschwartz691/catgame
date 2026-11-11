@@ -102,6 +102,15 @@ svg { width: 18px; height: 18px; fill: currentColor; }
 .keys { margin: 8px 0 0; font-size: 11.5px; color: #a58a72; line-height: 1.4; font-weight: 600; }
 .link { border: 0; background: none; color: #b9a08c; font-size: 11px; font-weight: 700; text-decoration: underline; margin-top: 4px; pointer-events: auto; }
 
+.chip.wide { display: block; margin: 8px auto 0; }
+.chip.strong { background: #ff9a3d; color: #fff; }
+#mp { margin-top: 8px; padding: 10px; border-radius: 14px; background: rgba(60,40,28,.06); font-size: 12.5px; font-weight: 700; color: var(--soft); }
+#mpSetup { display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; }
+#mpCode { width: 84px; border: 2px solid rgba(60,40,28,.18); border-radius: 10px; padding: 5px 6px; font-size: 16px; font-weight: 900; letter-spacing: 3px; text-align: center; text-transform: uppercase; color: var(--ink); background: #fff; pointer-events: auto; user-select: text; -webkit-user-select: text; }
+#mpStatus { margin-top: 6px; min-height: 1em; line-height: 1.4; }
+#mpStatus:empty { display: none; }
+#mpStatus b { font-size: 20px; letter-spacing: 3px; color: var(--ink); }
+
 /* ---------- to-do sheet ---------- */
 #tasks { position: absolute; inset: 0; background: rgba(20, 12, 8, .5); display: flex; align-items: center; justify-content: center; padding: calc(12px + var(--sat)) 12px calc(12px + var(--sab)); z-index: 20; }
 #tasks .sheet { width: min(560px, 100%); max-height: 100%; display: flex; flex-direction: column; background: #fffaf1; border-radius: 22px; box-shadow: 0 18px 60px rgba(0,0,0,.45); overflow: hidden; }
