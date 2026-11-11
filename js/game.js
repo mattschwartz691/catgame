@@ -183,7 +183,7 @@ export class Game {
       _m.compose(_a.set(p[0], y, p[2]), _q, _s.set(0.62, 0.62, 0.62)); this.treatMesh.setMatrixAt(i, _m);
       const dx = p[0] - cat.pos.x, dy = y - (cat.pos.y + 0.2), dz = p[2] - cat.pos.z;
       if (this.playing && dx * dx + dz * dz < 0.16 && Math.abs(dy) < 0.42) {
-        this.got.add(i); this.treatCombo = (this.treatT > 0 ? (this.treatCombo || 0) + 1 : 0); this.treatT = 3;
+        this.got.add(i); if (this.onTreat) this.onTreat(i); this.treatCombo = (this.treatT > 0 ? (this.treatCombo || 0) + 1 : 0); this.treatT = 3;
         sfx.collect({ n: this.treatCombo }); this.fx.burst(_a, 8, [0xffd27a, 0xfff1c9], { speed: 1.2, grav: 0.3, size: 0.016, life: 0.8 });
         this.score += 10; this.ui.setScore(this.score, false); this.ui.setTreats(this.got.size, this.treatTotal);
         this.task('treats', this.got.size, true); this.task('alltreats', this.got.size, true); this.save();
@@ -194,6 +194,13 @@ export class Game {
   }
 
   // ------------------------------------------------------------ interactive items
+  // a friend found this one: it is gone from the shared house, and counts for everybody
+  remoteTreat(i) {
+    if (!Number.isInteger(i) || i < 0 || i > 5000 || this.got.has(i)) return;
+    this.got.add(i); this.ui.setTreats(this.got.size, this.treatTotal);
+    this.task('treats', this.got.size, true); this.task('alltreats', this.got.size, true); this.save();
+  }
+
   buildItems(list = this.data.items) {
     const sc = this.scene, clip = [this.world.clip];
     const fresh = list.map(i => ({ ...i }));
@@ -278,6 +285,7 @@ export class Game {
     for (const it of this.items) if (it.kind === 'dangle' && _v.copy(it.bob).sub(P).length() < 0.45) {
       it.vx += e.fx * 5 - e.fz * e.side * 2; it.vz += e.fz * 5 + e.fx * e.side * 2; hit++; sfx.hit({ kind: 'jingle', vol: 0.5 }); this.task('dangle');
     }
+    if (e.remote) return hit;
     const v = this.vac;
     if (v && Math.hypot(v.pos.x - P.x, v.pos.z - P.z) < 0.4 && Math.abs(P.y - 0.1) < 0.4) { v.on = !v.on; sfx.vacuumBeep(); hit++; this.ui.toast(v.on ? 'The robot wakes up' : 'The robot naps'); }
     const f = this.fly;
@@ -455,6 +463,7 @@ export class Game {
         case 'scratch': this.onScratch(e); break;
         case 'snore': e ? sfx.snoreOut() : sfx.snoreIn(); if (!e) fx.float(_v.copy(cat.pos).add(_a.set(0.1, 0.35, 0)), 'z', '#cfe6ff', { size: 0.11, life: 1.8, vy: 0.22 }); break;
         case 'eat': sfx.crunch(); break;
+        case 'groom': sfx.lap(); if (Math.random() < 0.45) fx.float(_v.copy(cat.pos).add(_a.set(Math.sin(cat.yaw) * 0.3 + rnd(-0.08, 0.08), 0.4, Math.cos(cat.yaw) * 0.3)), '♥', '#ff8fa3', { size: 0.09 }); break;
         case 'drink': sfx.lap(); break;
         case 'knead': this.task('knead'); if (Math.random() < 0.3) fx.float(_v.copy(cat.pos).add(_a.set(rnd(-0.1, 0.1), 0.4, 0)), '♥', '#ff8fa3', { size: 0.1 }); break;
         case 'actionEnd': if (e.kind === 'nap') { music.setMood(this.zoomT > 0 ? 'zoomies' : this.boom ? 'playful' : 'calm'); } break;
@@ -584,6 +593,8 @@ export class Game {
     }
     const fl = this.findScratch(true);
     const cosy = this.napSpot();
+    const pal = this.net && this.net.nearest(0.62);
+    if (pal) return { label: 'GROOM', kind: 'groom', hot: true, pal };
     if (cosy) return { label: 'NAP', kind: 'nap', hot: true };
     if (fl) return { label: 'STRETCH', kind: 'scratch', sc: fl };
     return { label: 'NAP', kind: 'nap' };
@@ -614,17 +625,18 @@ export class Game {
       case 'litter': cat.startAction('scratch', { type: 'floor', surface: 'carpet', name: 'litter', max: 2.5 }); this.task('litter'); this.fx.burst(_v.copy(cat.pos).setY(cat.pos.y + 0.05), 12, [0xe8d9b5, 0xd9c7a0], { speed: 1.2, size: 0.014 }); if (this.time - this.digT > 30) { this.digT = this.time; this.chaos(10, 'Business concluded'); } break;
       case 'nap': cat.startAction('nap', {}); this.napT = 0; this.napInfo = this.napSpot(); loops.purr.start(); music.setMood('sleepy'); break;
       case 'grab': {
-        const p = c.prop; p.held = true; p.asleep = true; this.carry = p; cat.carrying = true;
+        const p = c.prop; p.held = true; p.asleep = true; this.props.touch(p); this.carry = p; cat.carrying = true;
         cat.mouth.add(p.g); p.g.position.set(0, -p.r * 0.2, p.r * 0.5); p.g.rotation.set(0, Math.PI / 2, 0); p.g.scale.setScalar(1 / CAT_S);
         sfx.bap(); if (p.d.sock) this.ui.tip('Carry the sock to your cat bed in the bedroom, then DROP it', 5);
       } break;
       case 'drop': this.drop(); break;
+      case 'groom': { const q = c.pal.cat.pos; cat.startAction('groom', { yaw: Math.atan2(q.x - cat.pos.x, q.z - cat.pos.z), max: 7 }); } break;
     }
   }
   drop() {
     const p = this.carry, cat = this.cat; if (!p) return;
     p.g.getWorldPosition(_v); this.scene.add(p.g); p.g.position.copy(_v); p.g.scale.setScalar(1); p.g.rotation.set(0, cat.yaw, 0);
-    p.held = false; p.asleep = false; p.still = 0; p.vel.set(Math.sin(cat.yaw) * 0.8, 0.6, Math.cos(cat.yaw) * 0.8); this.carry = null; cat.carrying = false;
+    p.held = false; p.asleep = false; p.still = 0; this.props.touch(p); p.vel.set(Math.sin(cat.yaw) * 0.8, 0.6, Math.cos(cat.yaw) * 0.8); this.carry = null; cat.carrying = false;
     if (p.d.sock && !p.stashed) {
       const bed = this.data.zones.find(z => z.kind === 'nap' && z.name === 'the cat bed');
       if (bed && Math.hypot(cat.pos.x - bed.p[0], cat.pos.z - bed.p[2]) < 0.7) { p.stashed = true; this.task('socks'); this.chaos(25, 'Sock secured'); }

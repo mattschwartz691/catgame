@@ -132,6 +132,15 @@ export class Cat {
     this.mouth = new THREE.Object3D(); this.mouth.position.set(0, nose[1] - 0.045, nose[2] - 0.012); B.head.add(this.mouth);
   }
 
+  // batted by another cat: a startled hop backwards
+  recoil(fx, fz, pow = 1) {
+    const l = Math.hypot(fx, fz) || 1;
+    this.stopAction(); this.charge = 0; this.pouncing = false; this.crouchT = 0;
+    this.vel.x = fx / l * 1.7 * pow; this.vel.z = fz / l * 1.7 * pow; this.vel.y = 3.1 + 0.9 * pow;
+    this.grounded = false; this.coyote = 0; this.jumpCut = true; this.squashV += 2.8; this.idle = 0; this.exc = 1;
+    this.meowT = 1; this.meow(Math.random() < 0.5 ? 'hiss' : 'chirp');
+  }
+
   meow(kind) { if (this.meowT >= 1) { this.meowT = 0; this.emit('meow', kind); } }
 
   // type: 'scratch' | 'nap' | 'eat' | 'drink' | 'knead'.  info: {x, z, yaw, type(for scratch), max, ...}
@@ -159,7 +168,7 @@ export class Cat {
     if (act) {
       act.t += dt;
       const sc = act.kind === 'scratch', kn = act.kind === 'knead';
-      const rate = sc ? 2.6 : kn ? 1.7 : act.kind === 'eat' ? 3 : act.kind === 'drink' ? 4 : 0.35;
+      const rate = sc ? 2.6 : kn ? 1.7 : act.kind === 'groom' ? 2.3 : act.kind === 'eat' ? 3 : act.kind === 'drink' ? 4 : 0.35;
       this.actPh += dt * rate * TAU;
       const n = Math.floor(act.t * rate * (sc || kn ? 2 : 1));
       if (n > act.n) {
@@ -295,6 +304,7 @@ export class Cat {
     this.stretchW = damp(this.stretchW, kind === 'scratch' && act.type === 'floor' ? 1 : 0, 9, dt);
     this.eatW = damp(this.eatW, kind === 'eat' || kind === 'drink' ? 1 : 0, 7, dt);
     this.kneadW = damp(this.kneadW, kind === 'knead' ? 1 : 0, 7, dt);
+    this.lickW = damp(this.lickW || 0, kind === 'groom' ? 1 : 0, 7, dt);       // washing a friend
     this.groomW = damp(this.groomW, grooming ? 1 : 0, 6, dt);
     this.crouchW = damp(this.crouchW, this.charge > 0 ? 0.35 + 0.65 * this.charge : 0, 14, dt);
     this.runT = damp(this.runT, sstep(1.3, 2.5, hs), 8, dt);
@@ -352,7 +362,7 @@ export class Cat {
     this.lookPitch = damp(this.lookPitch, tp, 7, dt);
     const headComp = sitE * 0.56 + rearW * 0.7 - stretchW * 0.27 + airW * u * 0.2 - crouchW * 0.2 - kneadW * 0.05;
     const chew = eatW * (0.1 * Math.max(0, Math.sin(this.actPh)));
-    const lickBob = groomW * 0.12 * Math.sin(t * 9);
+    const lickBob = groomW * 0.12 * Math.sin(t * 9) + this.lickW * (0.26 + 0.16 * Math.sin(this.actPh));
     this.headG.rotation.set(
       headComp + this.lookPitch * (1 - eatW) + env * 0.3 - menv * 0.3 + moveW * 0.03 * Math.sin(2 * TAU * ph + 1)
         + eatW * 0.95 + chew + sleepE * 0.7 + groomW * 0.75 + lickBob + kneadW * 0.25,
@@ -528,7 +538,7 @@ export class Cat {
     if (this.blinkT < 0) { this.blinkT = 1.8 + Math.random() * 4; this.blink = 0; }
     if (this.blink < 1) this.blink = Math.min(1, this.blink + dt / 0.16);
     const bl = Math.sin(Math.PI * this.blink);
-    this.purr = damp(this.purr, Math.max(kneadW, sleepE, lieE * 0.6), 3, dt);
+    this.purr = damp(this.purr, Math.max(kneadW, sleepE, lieE * 0.6, (this.lickW || 0) * 0.6, this.petW || 0), 3, dt);
     model.setLids(Math.max(bl, sleepE, groomW * 0.6), Math.max(sitE * 0.2, kneadW * 0.7, lieE * 0.45, eatW * 0.4));
     this.exc = damp(this.exc, Math.max(airW, env, rearW, runT * 0.6, crouchW, this.lookAt ? 0.4 : 0.15), 6, dt);
     model.setPupil(lerp(0.12, 1, this.exc));

@@ -176,7 +176,8 @@ export class Props {
     g.rotation.y = THREE.MathUtils.degToRad(p.rot || 0) + (src ? 0 : rnd(0, 6.28));
     this.scene.add(g);
     const P = { id, d, g, pos: g.position, vel: new THREE.Vector3(), spin: new THREE.Vector3(), r: d.r, asleep: true, still: 0,
-      homeY: p.p[1], fallen: false, dead: false, held: false, name: d.name };
+      homeY: p.p[1], fallen: false, dead: false, held: false, name: d.name, mine: 0, dirty: false };
+    P.home = { pos: g.position.clone(), quat: g.quaternion.clone() };
     this.list.push(P);
     return P;
   }
@@ -198,7 +199,7 @@ export class Props {
       const s = e.side || 0, sx = e.fz * s, sz = -e.fx * s;
       this.kick(p, (e.fx * 2.9 - sx * 1.3 + rnd(-0.3, 0.3)) * power, (p.d.round ? 2.2 : 1.5) * power, (e.fz * 2.9 - sz * 1.3 + rnd(-0.3, 0.3)) * power);
       if (p.d.tippy) this.tip(p, e.fx, e.fz);
-      n++; this.emit('bap', p);
+      n++; this.touch(p); this.emit('bap', p);
     }
     return n;
   }
@@ -212,6 +213,16 @@ export class Props {
     p.g.quaternion.premultiply(_q); p.spin.set(0, 0, 0);
     p.asleep = false; p.still = 0;
     this.emit('tipped', p);
+  }
+
+  // the local cat has just handled this: in a shared house its motion is ours to report
+  touch(p) { p.mine = performance.now(); p.dirty = true; }
+  // put something back as it was (joining someone else's house)
+  reset(p) {
+    if (p.dead) { p.dead = false; this.scene.add(p.g); }
+    if (p.held) { this.scene.add(p.g); p.g.scale.setScalar(1); p.held = false; p.heldBy = null; }
+    p.pos.copy(p.home.pos); p.g.quaternion.copy(p.home.quat); p.vel.set(0, 0, 0); p.spin.set(0, 0, 0);
+    p.asleep = true; p.still = 0; p.fallen = p.tipped = p.spilled = p.dirty = false; p.mine = 0;
   }
 
   nearest(pos, maxD, filter) {
@@ -247,7 +258,7 @@ export class Props {
         if (have < want) { p.vel.x += nx * (want - have); p.vel.z += nz * (want - have); }
         if (p.asleep && vn > 0.5) this.emit('nudge', p);
         if (p.d.tippy && vn > 1.8) this.tip(p, nx, nz);
-        p.asleep = false; p.still = 0;
+        p.asleep = false; p.still = 0; this.touch(p);
       }
       if (p.asleep) continue;
 

@@ -44,7 +44,7 @@ const sp = world.data.spawn;
 cat.teleport(sp.x, 0, sp.z, sp.yaw);
 const input = new Input(canvas);
 const game = new Game({ scene, world, props, fx, cat, ui, input, camera });
-const net = new Net({ scene, world, cat, catAssets, props, ui, sfx });
+const net = new Net({ scene, world, cat, catAssets, props, ui, sfx, game, fx, loops });
 net.setShells(R.tier.shells / 2);
 net.onChange = () => ui.setNet(net);
 ui.onHost = () => { initAudio(); net.host(); }; ui.onJoin = (code) => { initAudio(); net.join(code); }; ui.onLeave = () => net.leave();
@@ -55,12 +55,13 @@ let gateTold = 0;
 let moreStarted = false, moreDone;
 const moreReady = new Promise(res => { moreDone = res; });
 const startMore = () => { if (moreStarted) return; moreStarted = true; loadMore(R.r, { half: R.tierName !== 'high' }).then(list => {
-  for (const a of list) { world.addArea(a); props.addProps(a.data.props || []); fx.addShafts(a.data.windows || []); game.addArea(a.data); }
+  for (const a of list) { world.addArea(a); props.addProps(a.data.props || []); net.flushPending(); fx.addShafts(a.data.windows || []); game.addArea(a.data); }
   world.boxes.splice(world.boxes.indexOf(gate), 1);
   if (state === 'play') ui.toast('The coast is clear: off you go', 'find');
   moreDone(true);
 }).catch(e => { console.warn('second house failed to load', e); world.boxes.splice(world.boxes.indexOf(gate), 1); moreDone(false); }); };
 if (new URLSearchParams(location.search).has('all')) startMore();
+net.needAll = startMore;          // a shared house needs all of it, so everyone's things line up
 
 // sky dome
 let sky;

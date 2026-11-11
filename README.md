@@ -51,5 +51,7 @@ three.js is MIT licensed. Sound and music are synthesised in the browser.
 
 "Play together" in the menu links up to four players so they see each other's cats. One starts a game and
 gets a four-letter code; the others join with it. The browsers talk directly over WebRTC (`js/net.js`,
-vendored PeerJS); the public PeerJS broker is used only to introduce them. Only the cats are shared: each
-player keeps their own house, treats and to-do list.
+vendored PeerJS); the public PeerJS broker is used only to introduce them. The house is shared: things knocked
+over, carried or smashed, and treats found, are the same for everyone. Cats can bat each other (the other one
+hops back) and wash each other (the action button becomes GROOM when two cats are close). Score and to-do
+list stay personal.
